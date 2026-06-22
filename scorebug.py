@@ -579,7 +579,7 @@ def get_team_colour(team, default):
     return colour.replace("#", "")
 
 def frame_buffer(img):
-    img = img.convert("RGB").resize((WIDTH, HEIGHT))
+    img = img.convert("RGBA").resize((WIDTH, HEIGHT))
 
     # arr = np.asarray(img)
 
