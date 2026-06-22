@@ -590,7 +590,7 @@ def frame_buffer(img):
     # rgb565 = (r << 11) | (g << 5) | b
 
     with open(FB, "wb") as fb:
-        fb.write(img.tobytes("raw", "BGRA"))
+        fb.write(img.tobytes("raw", "RGB"))
     # fb.write(rgb565.tobytes())
 
 def main():
