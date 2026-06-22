@@ -177,7 +177,7 @@ def index():
             >
 
             <div class="button-row">
-                <button type="button" onclick="clearLockPlay()">Live / unlock</button>
+                <button type="button" onclick="clearPlayLock()">Live / unlock</button>
             </div>
 
             <label>Competition</label>
