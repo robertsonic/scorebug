@@ -21,16 +21,10 @@ STATUS_TIMEOUT = 120
 
 status_timer = 0
 
-# pygame.init()
-# pygame.mouse.set_visible(False)
-# print("Displays:", pygame.display.get_num_displays())
+with open("/sys/class/graphics/fb0/virtual_size") as f:
+    WIDTH, HEIGHT = map(int, f.read().split(","))
 
-# DISPLAY = pygame.display.get_num_displays() - 1
-# screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN,display=DISPLAY)
-
-# screen.fill("#FF66C4"),
-# pygame.display.flip()
-
+print(f"Framebuffer is {WIDTH}x{HEIGHT}")
 
 INNINGS = [
     "PRE",
@@ -223,7 +217,7 @@ def get_pitchers(payload):
 
 def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour):
 
-    img = Image.new("RGBA", (WIDTH, HEIGHT), (255, 0, 255, 255))
+    img = Image.new("RGBA", (1920, 1080), (255, 0, 255, 255))
 
     draw = ImageDraw.Draw(img)
 
@@ -283,7 +277,7 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
                 fill="white",
                 font=font_row,
                 anchor="lm", stroke_fill="#000", stroke_width=1)
-            
+
         else:
             draw.text((290, y), str(player["order"]), fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
             draw.text((340, y), player["pos"], fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
@@ -311,7 +305,7 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
                 fill="white",
                 font=font_row,
                 anchor="lm", stroke_fill="#000", stroke_width=1)
-            
+
         else:
             draw.text((980, y), str(player["order"]), fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
             draw.text((1030, y), player["pos"], fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
@@ -321,7 +315,6 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
                 fill="white",
                 font=font_row,
                 anchor="lm", stroke_fill="#000", stroke_width=1)
-            
 
     img.save(OUTPUT_FILE)
 
@@ -602,7 +595,7 @@ def frame_buffer(img):
 def main():
     global status_timer
 
-    frame_buffer(Image.new("RGB", (WIDTH, HEIGHT), ("#FF66C4")))
+    frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
 
     last_play = 0 
 
