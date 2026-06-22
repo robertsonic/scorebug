@@ -234,21 +234,106 @@ This creates a true embedded appliance.
 
 ---
 
-## Framebuffer Configuration
+## Framebuffer
 
-The framebuffer operates at:
+The Raspberry Pi runs using the full KMS driver:
 
-```text
-1920x1080
-16-bit RGB565
+```ini
+dtoverlay=vc4-kms-v3d
 ```
 
-Raw RGB output cannot be written directly.
+To force a 32-bit framebuffer, edit:
 
-Images are converted to RGB565 before being written to:
+```bash
+sudo nano /boot/firmware/cmdline.txt
+```
+
+and add/amend the HDMI video mode:
+
+```text
+video=HDMI-A-1:1920x1080M@60
+```
+
+to:
+
+```text
+video=HDMI-A-1:1920x1080M-32@60
+```
+
+This forces the KMS driver to create a 32-bit framebuffer.
+
+Reboot the Pi:
+
+```bash
+sudo reboot
+```
+
+Confirm the framebuffer depth:
+
+```bash
+cat /sys/class/graphics/fb0/bits_per_pixel
+```
+
+which should return:
+
+```text
+32
+```
+
+Images are rendered using Pillow and converted from RGBA to BGRA before being written directly to:
 
 ```text
 /dev/fb0
+```
+
+using:
+
+```python
+def frame_buffer(img):
+    img = img.convert("RGBA").resize((WIDTH, HEIGHT))
+
+    arr = np.asarray(img)
+
+    # Convert RGBA to BGRA
+    bgra = arr[:, :, [2, 1, 0, 3]]
+
+    with open("/dev/fb0", "wb") as fb:
+        fb.write(bgra.tobytes())
+```
+
+This provides:
+
+- 32-bit colour.
+- Smooth anti-aliased fonts.
+- No colour banding.
+- No desktop environment.
+- No X11.
+- No Wayland.
+- No OBS.
+- No Pygame.
+
+while maintaining a true embedded appliance architecture.
+
+```text
+WBSC JSON
+        ↓
+scorebug.py
+        ↓
+PIL
+        ↓
+RGBA
+        ↓
+NumPy RGBA→BGRA
+        ↓
+/dev/fb0 (32-bit)
+        ↓
+vc4-kms-v3d
+        ↓
+HDMI
+        ↓
+ATEM Mini Pro
+        ↓
+YouTube
 ```
 
 ---
