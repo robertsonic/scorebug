@@ -292,13 +292,9 @@ using:
 def frame_buffer(img):
     img = img.convert("RGBA").resize((WIDTH, HEIGHT))
 
-    arr = np.asarray(img)
+    with open(FB, "wb") as fb:
+        fb.write(img.tobytes("raw", "BGRA"))
 
-    # Convert RGBA to BGRA
-    bgra = arr[:, :, [2, 1, 0, 3]]
-
-    with open("/dev/fb0", "wb") as fb:
-        fb.write(bgra.tobytes())
 ```
 
 This provides:
