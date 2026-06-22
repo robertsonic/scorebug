@@ -12,6 +12,7 @@ import os
 POLL_INTERVAL = 3
 OUTPUT_FILE = "scorebug.png"
 TEMPLATE_FILE = "template.png"
+FB = "/dev/fb0"
 
 WIDTH = 1920
 HEIGHT = 1080
@@ -19,15 +20,15 @@ STATUS_TIMEOUT = 120
 
 status_timer = 0
 
-pygame.init()
-pygame.mouse.set_visible(False)
-print("Displays:", pygame.display.get_num_displays())
+# pygame.init()
+# pygame.mouse.set_visible(False)
+# print("Displays:", pygame.display.get_num_displays())
 
-DISPLAY = pygame.display.get_num_displays() - 1
-screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN,display=DISPLAY)
+# DISPLAY = pygame.display.get_num_displays() - 1
+# screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.FULLSCREEN,display=DISPLAY)
 
-screen.fill("#FF66C4"),
-pygame.display.flip()
+# screen.fill("#FF66C4"),
+# pygame.display.flip()
 
 
 INNINGS = [
@@ -42,6 +43,9 @@ INNINGS = [
     "8th",
     "9th"
 ]
+
+
+
 
 try:
     font_large = ImageFont.truetype("Gotham-Bold.otf", 72)
@@ -583,12 +587,18 @@ def get_team_colour(team, default):
 
     return colour.replace("#", "")
 
+def frame_buffer(img):
+    img = img.convert("RGB").resize((WIDTH, HEIGHT))
+
+    with open(FB, "wb") as fb:
+        fb.write(img.tobytes("raw", "RGB"))
+        
+
 def main():
-    
-    screen.fill("#FF00FF")
     global status_timer
 
-
+    
+    frame_buffer(Image.new("RGB", (WIDTH, HEIGHT), ("#FF66C4")))
 
     last_play = 0 
 
@@ -667,10 +677,12 @@ def main():
         #finished_img = Image.alpha_composite(finished_img, logo_layer)
         #finished_img.save(OUTPUT_FILE)
 
-        surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
+        #surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
         
-        screen.blit(surface,(0,0))
-        pygame.display.flip()
+        #screen.blit(surface,(0,0))
+        #pygame.display.flip()
+        
+        frame_buffer(finished_img)
         
         time.sleep(POLL_INTERVAL)
         status_timer = status_timer + POLL_INTERVAL
