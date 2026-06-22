@@ -8,6 +8,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 import os
+import numpy as np
 
 POLL_INTERVAL = 3
 OUTPUT_FILE = "scorebug.png"
@@ -590,9 +591,16 @@ def get_team_colour(team, default):
 def frame_buffer(img):
     img = img.convert("RGB").resize((WIDTH, HEIGHT))
 
+    arr = np.asarray(img)
+
+    r = (arr[:,:,0] >> 3).astype(np.uint16)
+    g = (arr[:,:,1] >> 2).astype(np.uint16)
+    b = (arr[:,:,2] >> 3).astype(np.uint16)
+
+    rgb565 = (r << 11) | (g << 5) | b
+
     with open(FB, "wb") as fb:
-        fb.write(img.tobytes("raw", "RGB"))
-        
+        fb.write(rgb565.tobytes())
 
 def main():
     global status_timer
