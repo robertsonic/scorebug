@@ -173,12 +173,8 @@ def index():
                 type="number"
                 min="0"
                 value="{game.get('play_lock', 0)}"
-                placeholder="Leave at 0 for live playback"
+                placeholder="Leave at 0 or blank for live playback"
             >
-
-            <div class="button-row">
-                <button type="button" onclick="clearPlayLock()">Live / unlock</button>
-            </div>
 
             <label>Competition</label>
             
