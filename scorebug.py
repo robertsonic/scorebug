@@ -1,13 +1,11 @@
-import sys
 import time
 import requests
 import json
-from PIL import Image, ImageDraw, ImageFont, ImageChops
+from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 import os
-import numpy as np
 
 POLL_INTERVAL = 3
 OUTPUT_FILE = "scorebug.png"
