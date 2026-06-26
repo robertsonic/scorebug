@@ -1,7 +1,6 @@
 import sys
 import time
 import requests
-import pygame
 import json
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 from datetime import datetime
@@ -21,8 +20,11 @@ STATUS_TIMEOUT = 120
 
 status_timer = 0
 
-with open("/sys/class/graphics/fb0/virtual_size") as f:
-    WIDTH, HEIGHT = map(int, f.read().split(","))
+try:
+    with open("/sys/class/graphics/fb0/virtual_size") as f:
+        WIDTH, HEIGHT = map(int, f.read().split(","))
+except:
+    print("Couldn't Load Frame Buffer")
 
 print(f"Framebuffer is {WIDTH}x{HEIGHT}")
 
@@ -386,22 +388,22 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         player = payload['boxscore'][player_num]
         if player['playerid'] == situation['batterid'] and 'PITCHES' not in player:
             batter = player
-            batter['order'] = player_num[2] if int(player_num[2]) > 0 else player_num[2] * 10
+            batter["order"] = str(int(player_num[1:3]))
 
-            batter['line'] = batter_line(batter)
+            batter["line"] = batter_line(batter)
             continue
-        if player['playerid'] == situation['pitcherid'] and 'PITCHES' in player:
+        if player["playerid"] == situation["pitcherid"] and "PITCHES" in player:
             pitcher = player
             continue
 
-    pitcher['BALLS'] = pitcher['PITCHES'] - pitcher['STRIKES']
+    pitcher["BALLS"] = pitcher["PITCHES"] - pitcher["STRIKES"]
 
     # Transparent image
     # img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     template = Image.open(TEMPLATE_FILE).convert("RGBA")
 
     overlay = Image.new("RGBA", template.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)    
+    draw = ImageDraw.Draw(overlay)
 
     # AWAY COLOUR
     draw.rectangle((852, 932, 1242, 1017), fill="#" + away["colour"] + "99")
@@ -423,7 +425,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         anchor="lt",
         align="left",
         stroke_fill="black",
-        stroke_width=1
+        stroke_width=1,
     )
     draw.text(
         (1177, 950),
@@ -433,7 +435,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         anchor="rt",
         align="right",
         stroke_fill="black",
-        stroke_width=1
+        stroke_width=1,
     )
     draw.text(
         (1260, 950),
@@ -443,7 +445,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         anchor="lt",
         align="left",
         stroke_fill="black",
-        stroke_width=1
+        stroke_width=1,
     )
     draw.text(
         (1570, 950),
@@ -453,14 +455,14 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         anchor="rt",
         align="right",
         stroke_fill="black",
-        stroke_width=1
+        stroke_width=1,
     )
 
     # {away['R']} - {home['R']} {home['name']}
 
     # Inning
     # draw.text((50, 130), situation["currentinning"], fill="white", font=font_small)
-    if(situation['currentinning'] == "FINAL"):
+    if situation["currentinning"] == "FINAL":
         draw.text(
             (1787, 845),
             "FINAL",
@@ -471,16 +473,26 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         )
     else:
 
-        if status_timer < STATUS_TIMEOUT and len(payload['platecount']) > 0 and payload['platecount'][0]['type'] == 0: #Basically if there isn't an AB going on
-            status = payload['platecount'][0]['label'].split("<br>")
-            away['player'] = status[0]
-            home['player'] = status[1] if len(status) > 1 else ""
+        if (
+            status_timer < STATUS_TIMEOUT
+            and len(payload["platecount"]) > 0
+            and payload["platecount"][0]["type"] == 0
+        ):  # Basically if there isn't an AB going on
+            status = payload["platecount"][0]["label"].split("<br>")
+            away["player"] = status[0]
+            home["player"] = status[1] if len(status) > 1 else ""
         elif half == "0":
-            away["player"] = f"{batter['order']}: {batter['POS']} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
-            home["player"] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+            away["player"] = (
+                f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
+            )
+            home["player"] = (
+                f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+            )
             draw_up_arrow(draw, 1760, 885)
         else:
-            home["player"] = f"{batter['order']}: {batter['POS']} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
+            home["player"] = (
+                f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
+            )
             away["player"] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
             draw_down_arrow(draw, 1760, 887)
 
@@ -580,24 +592,18 @@ def get_team_colour(team, default):
 def frame_buffer(img):
     img = img.convert("RGBA").resize((WIDTH, HEIGHT))
 
-    # arr = np.asarray(img)
-
-    # r = (arr[:,:,0] >> 3).astype(np.uint16)
-    # g = (arr[:,:,1] >> 2).astype(np.uint16)
-    # b = (arr[:,:,2] >> 3).astype(np.uint16)
-
-    # rgb565 = (r << 11) | (g << 5) | b
-
     with open(FB, "wb") as fb:
         fb.write(img.tobytes("raw", "BGRA"))
-    # fb.write(rgb565.tobytes())
 
 def main():
     global status_timer
 
-    frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
+    try:
+        frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
+    except:
+        print("Cannot write to Buffer")
 
-    last_play = 0 
+    last_play = 0
 
     while True:
         now = datetime.now(ZoneInfo("Europe/London"))
@@ -623,8 +629,8 @@ def main():
             if int(latest_play) > int(last_play) or status_timer >= STATUS_TIMEOUT:
                 payload = get_play(game_id, latest_play)
 
-                hc = get_team_colour(home,"FFFFFF")
-                ac = get_team_colour(away,"000000")
+                hc = get_team_colour(home, "FFFFFF")
+                ac = get_team_colour(away, "000000")
 
                 if int(latest_play) == 1:
                     render_lineup_sheet(payload, lineup_medium, lineup_small, hc, ac)
@@ -635,52 +641,51 @@ def main():
 
                 last_play = latest_play
 
+            finished_img = Image.open(OUTPUT_FILE)
+            try:
+                league_logo = Image.open(f"images/{competition_img}.png").convert(
+                    "RGBA"
+                )
+
+                league_logo.thumbnail((120, 120))
+                # alpha = league_logo.getchannel("A")
+                # alpha = alpha.point(lambda p: int(p * 0.8))
+                # league_logo.putalpha(alpha)
+
+                # logo_layer = Image.new("RGBA", finished_img.size, (0, 0, 0, 0))
+                finished_img.paste(league_logo, (15, 25), league_logo)
+            except:
+                print(f"Could'nt work with {competition_img}")
+
+            clock_draw = ImageDraw.Draw(finished_img)
+
+            # AWAY COLOUR
+            clock_draw.rounded_rectangle(
+                (1800, 20, 1900, 80), fill="#000000", radius=15, outline="#FFF", width=2
+            )
+            clock_draw.text(
+                (1850, 50),
+                clock,
+                fill="#FFF",
+                anchor="mm",
+                font=font_small,
+                align="center",
+            )
+
+            # finished_img = Image.alpha_composite(finished_img, logo_layer)
+            # finished_img.save(OUTPUT_FILE)
+
+            # surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
+
+            # screen.blit(surface,(0,0))
+            # pygame.display.flip()
+            try:
+                frame_buffer(finished_img)
+            except:
+                finished_img.save(OUTPUT_FILE)
+
         except Exception as e:
             print("Error:", e)
-
-        finished_img = Image.open(OUTPUT_FILE)
-        try:
-            league_logo = Image.open(f"images/{competition_img}.png").convert("RGBA")
-
-            league_logo.thumbnail((120, 120))
-            # alpha = league_logo.getchannel("A")
-            # alpha = alpha.point(lambda p: int(p * 0.8))
-            # league_logo.putalpha(alpha)
-
-            # logo_layer = Image.new("RGBA", finished_img.size, (0, 0, 0, 0))
-            finished_img.paste(league_logo, (15, 25), league_logo)
-        except:
-            print(f"Could'nt work with {competition_img}")
-
-        clock_draw = ImageDraw.Draw(finished_img)    
-
-        # AWAY COLOUR
-        clock_draw.rounded_rectangle(
-            (1800, 20, 1900, 80),
-            fill="#000000",
-            radius=15,
-            outline="#FFF",
-            width=2
-
-        )
-        clock_draw.text(
-            (1850,50),
-            clock,
-            fill="#FFF",
-            anchor="mm",
-            font=font_small,
-            align="center"
-        )
-
-        # finished_img = Image.alpha_composite(finished_img, logo_layer)
-        # finished_img.save(OUTPUT_FILE)
-
-        # surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
-
-        # screen.blit(surface,(0,0))
-        # pygame.display.flip()
-
-        frame_buffer(finished_img)
 
         time.sleep(POLL_INTERVAL)
         status_timer = status_timer + POLL_INTERVAL

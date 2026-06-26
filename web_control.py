@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify, render_template_string
 import json
 import os
 import tempfile
+import requests
+from bs4 import BeautifulSoup
+import re
 
 app = Flask(__name__)
 GAME_FILE = "game.json"
@@ -65,6 +68,78 @@ def colour_buttons(field_id):
 
     return html
 
+
+def fetch_games(competition):
+    # TODO: replace this with the real WBSC endpoint once known
+    urls = {
+        "bbf_div_3": "https://stats.britishbaseball.org.uk/en/events/2026-d3/home",
+        "bbf_div_2": "https://stats.britishbaseball.org.uk/en/events/2026-d2/home",
+        "bbf_div_4": "https://stats.britishbaseball.org.uk/en/events/2026-d4/home",
+        "bbf_div_5": "https://stats.britishbaseball.org.uk/en/events/2026-d5/home",
+    }
+    print(f"Fetching games for {competition}")
+
+    url = urls.get(competition)
+    if not url:
+        return []
+
+    response = requests.get(
+        url,
+        timeout=10,
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-GB,en;q=0.9",
+        },
+        allow_redirects=True,
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    games = []
+
+    for row in soup.select(".homepage-game-row"):
+        score_span = row.select_one(".game-score span[class^='away']")
+        if not score_span:
+            continue
+
+        match = re.search(r"away(\d+)", " ".join(score_span.get("class", [])))
+        if not match:
+            continue
+
+        game_id = int(match.group(1))
+
+        teams = [t.get_text(strip=True) for t in row.select(".team-name")]
+        if len(teams) != 2:
+            continue
+
+        away, home = teams
+
+        game_time_text = row.select_one(".game-time").get_text(" ", strip=True)
+
+        games.append(
+            {
+                "id": game_id,
+                "date": game_time_text,
+                "time": "",
+                "away": away,
+                "home": home,
+            }
+        )
+
+    return games
+
+
+@app.route("/api/upcoming-games")
+def api_upcoming_games():
+    competition = request.args.get("competition", "").strip()
+
+    if not competition:
+        return jsonify([])
+
+    return jsonify(fetch_games(competition))
+
+
 @app.route("/")
 def index():
     with open(GAME_FILE) as f:
@@ -76,7 +151,7 @@ def index():
     return f"""
     <html>
     <head>
-        <title>Richmond Baseball Video Graphics Control</title>
+        <title>Richmond Baseball Video Control</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body {{
@@ -145,37 +220,65 @@ def index():
         </style>
 
         <script>
+
             function setColour(fieldId, colour) {{
                 document.getElementById(fieldId).value = colour;
             }}
 
-            function setCompetition(comp) {{
+            async function setCompetition(comp) {{
                 document.getElementById("competition").value = comp;
+                /*
+                const select = document.getElementById("upcoming_games");
+
+                select.innerHTML = '<option value="">Loading...</option>';
+
+                if (!comp) {{
+                    select.innerHTML = '<option value="">Select a competition first</option>';
+                    return;
+                }}
+
+                try {{
+                    const response = await fetch(`/api/upcoming-games?competition=${{encodeURIComponent(comp)}}`);
+                    const games = await response.json();
+
+                    select.innerHTML = '<option value="">Choose a game...</option>';
+
+                    if (!games.length) {{
+                        select.innerHTML = '<option value="">No upcoming games found</option>';
+                        return;
+                    }}
+                    
+                    for (const game of games) {{
+                        const option = document.createElement("option");
+                        option.value = game.id;
+                        option.textContent = `${{game.date}} ${{game.time}} - ${{game.away}} @ ${{game.home}} (#${{game.id}})`;
+                        select.appendChild(option);
+                    }}
+                }} catch (err) {{
+                    select.innerHTML = '<option value="">Error loading games</option>';
+                    console.error(err);
+                }}*/
             }}
 
             function clearPlayLock() {{
                 document.getElementById("play_lock").value = "";
             }}
+
+            function selectUpcomingGame() {{
+                const select = document.getElementById("upcoming_games");
+                const gameId = select.value;
+
+                if (gameId) {{
+                    document.querySelector('input[name="id"]').value = gameId;
+                }}
+            }}
         </script>
     </head>
 
     <body>
-        <h1>Richmond Baseball Video Graphics Control</h1>
+        <h1>Richmond Baseball Video Control</h1>
 
         <form method="post" action="/save">
-            <label>Game ID</label>
-            <input name="id" value="{game.get('id', '')}">
-            
-            <label>Lock to play #</label>
-            <input
-                id="play_lock"
-                name="play_lock"
-                type="number"
-                min="0"
-                value="{game.get('play_lock', 0)}"
-                placeholder="Leave at 0 or blank for live playback"
-            >
-
             <label>Competition</label>
             
             <input
@@ -187,6 +290,28 @@ def index():
             <div class="swatches">
                 {competition_buttons()}
             </div>
+
+            <label>Game ID</label>
+            <input name="id" value="{game.get('id', '')}">
+            
+            <!-- <label>Upcoming games</label>
+            <select
+                id="upcoming_games"
+                onchange="selectUpcomingGame()"
+                style="width: 100%; font-size: 24px; padding: 14px; border-radius: 8px;"
+            >
+                <option value="">Select a competition</option>
+            </select> -->
+            
+            <label>Lock to play #</label>
+            <input
+                id="play_lock"
+                name="play_lock"
+                type="number"
+                min="0"
+                value="{game.get('play_lock', 0)}"
+                placeholder="Leave at 0 or blank for live playback"
+            >            
 
             <label>Away colour</label>
             <input id="away_colour" name="away_colour" value="{away_colour}">
