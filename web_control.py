@@ -60,6 +60,7 @@ def colour_buttons(field_id):
         ("Orange", "FF8800", "orange"),
         ("Green", "00AA44", "green"),
         ("Dark Green", "006400", "darkgreen"),
+        ("Yellow", "FFFF00", "yellow"),
     ]
 
     html = ""

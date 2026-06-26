@@ -1,3 +1,4 @@
+import sys
 import time
 import requests
 import json
@@ -6,14 +7,27 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 import os
+import subprocess
+import tempfile
 
 POLL_INTERVAL = 3
 OUTPUT_FILE = "scorebug.png"
 TEMPLATE_FILE = "template.png"
 FB = "/dev/fb0"
 
+RTMP_URL = "rtmp://richmond-gfx-rpi/live/scorebug"
+
+
 WIDTH = 1920
 HEIGHT = 1080
+HDMI_WIDTH = WIDTH
+HDMI_HEIGHT = HEIGHT
+RTMP_WIDTH = WIDTH
+RTMP_HEIGHT = HEIGHT
+RTMP_FPS = 25
+FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame"
+TEMP_FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame.tmp"
+
 STATUS_TIMEOUT = 120
 
 status_timer = 0
@@ -24,20 +38,9 @@ try:
 except:
     print("Couldn't Load Frame Buffer")
 
-print(f"Framebuffer is {WIDTH}x{HEIGHT}")
+print(f"Image is {WIDTH}x{HEIGHT}")
 
-INNINGS = [
-    "PRE",
-    "1st",
-    "2nd",
-    "3rd",
-    "4th",
-    "5th",
-    "6th",
-    "7th",
-    "8th",
-    "9th"
-]
+INNINGS = ["PRE", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]
 
 
 try:
@@ -52,6 +55,7 @@ except:
     font_small = ImageFont.load_default(16)
     lineup_medium = ImageFont.load_default(56)
     lineup_small = ImageFont.load_default(24)
+
 
 def get_latest_play(game_id):
     url = f"https://game.wbsc.org/gamedata/{game_id}/latest.json"
@@ -70,6 +74,7 @@ def get_play(game_id, play_number):
 
     return response.json()
 
+
 def batting_avg(ab, h):
     ab = int(ab)
     h = int(h)
@@ -78,14 +83,18 @@ def batting_avg(ab, h):
         return ".000"
 
     return f"{h / ab:.3f}".lstrip("0")
+
+
 def occupied(value):
     return value not in (0, "0", None, "")
+
 
 def get_inning(inning):
     try:
         return INNINGS[int(inning)]
     except:
         return inning
+
 
 def image_logic(url):
 
@@ -115,43 +124,21 @@ def image_logic(url):
 
     return image_path
 
-# def surname(name):
-#     parts = name.split()
-
-#     surname_parts = []
-
-#     for part in parts:
-#         if part.isupper():
-#             surname_parts.append(part)
-#         else:
-#             break
-
-#     surname = " ".join(surname_parts)
-#     print(surname)
-#     return surname
 
 def draw_up_arrow(draw, x, y, size=10, fill="white"):
-    points = [
-        (x, y - size),      # top
-        (x + size, y + size),
-        (x - size, y + size)
-    ]
+    points = [(x, y - size), (x + size, y + size), (x - size, y + size)]  # top
 
     draw.polygon(points, fill=fill)
+
 
 def draw_down_arrow(draw, x, y, size=10, fill="white"):
-    points = [
-        (x - size, y - size),
-        (x + size, y - size),
-        (x, y + size)
-    ]
+    points = [(x - size, y - size), (x + size, y - size), (x, y + size)]
 
     draw.polygon(points, fill=fill)
+
+
 def get_lineups(payload):
-    lineups = {
-        "away": [],
-        "home": []
-    }
+    lineups = {"away": [], "home": []}
 
     seen = set()
 
@@ -185,7 +172,7 @@ def get_lineups(payload):
 
         seen.add((team_side, batting_order))
 
-        row['image'] = "" #image_logic(row['image'])
+        row["image"] = ""  # image_logic(row['image'])
 
         if team_side == "1":
             lineups["away"].append(row)
@@ -197,11 +184,9 @@ def get_lineups(payload):
 
     return lineups
 
+
 def get_pitchers(payload):
-    pitchers = {
-        "away": None,
-        "home": None
-    }
+    pitchers = {"away": None, "home": None}
 
     for key, player in payload["boxscore"].items():
         if "PITCHES" not in player:
@@ -215,6 +200,7 @@ def get_pitchers(payload):
 
     return pitchers
 
+
 def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour):
 
     img = Image.new("RGBA", (1920, 1080), (255, 0, 255, 255))
@@ -225,29 +211,41 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
 
     pitchers = get_pitchers(payload)
 
-    lineups['away'].append(None)
-    lineups['home'].append(None)
+    lineups["away"].append(None)
+    lineups["home"].append(None)
 
-    lineups['away'].append(pitchers['away'])
-    lineups['home'].append(pitchers['home'])
+    lineups["away"].append(pitchers["away"])
+    lineups["home"].append(pitchers["home"])
 
     away_name = payload.get("eventaway", "AWAY")
     home_name = payload.get("eventhome", "HOME")
 
     # Main panel
     draw.rounded_rectangle(
-        (270, 180, 1650, 950),
-        radius=25,
-        fill="#111",
-        outline="#FFF",
-        width=2
+        (270, 180, 1650, 950), radius=25, fill="#111", outline="#FFF", width=2
     )
 
-    draw.rectangle((272,200,960,260), fill="#" + away_colour)
-    draw.rectangle((960,200,1648,260), fill="#" + home_colour)
+    draw.rectangle((272, 200, 960, 260), fill="#" + away_colour)
+    draw.rectangle((960, 200, 1648, 260), fill="#" + home_colour)
     # Titles
-    draw.text((605, 230), away_name, fill="white", font=font_title, anchor="mm", stroke_fill="#000", stroke_width=1)
-    draw.text((1340, 230), home_name, fill="white", font=font_title, anchor="mm", stroke_fill="#000", stroke_width=1)
+    draw.text(
+        (605, 230),
+        away_name,
+        fill="white",
+        font=font_title,
+        anchor="mm",
+        stroke_fill="#000",
+        stroke_width=1,
+    )
+    draw.text(
+        (1340, 230),
+        home_name,
+        fill="white",
+        font=font_title,
+        anchor="mm",
+        stroke_fill="#000",
+        stroke_width=1,
+    )
 
     # Column headers
     draw.text((290, 285), "#", fill="#CCCCCC", font=font_row, anchor="lm")
@@ -265,58 +263,124 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
         if player == None:
             continue
         y = start_y + i * row_gap
-        draw.rounded_rectangle((280,y-20,950,y+20), fill="#" + away_colour + "CC",
-        outline="#" + away_colour,
-        width=1,
-        radius=5)
-        if 'PITCHES' in player:
-            draw.text((290, y), "Pitcher:", fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
+        draw.rounded_rectangle(
+            (280, y - 20, 950, y + 20),
+            fill="#" + away_colour + "CC",
+            outline="#" + away_colour,
+            width=1,
+            radius=5,
+        )
+        if "PITCHES" in player:
+            draw.text(
+                (290, y),
+                "Pitcher:",
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
             draw.text(
                 (420, y),
                 f"{player["name"]} (ER: {player['SEASON']['PITCHER']} BB: {player['SEASON']['PITCHBB']} K: {player['SEASON']['PITCHSO']})",
                 fill="white",
                 font=font_row,
-                anchor="lm", stroke_fill="#000", stroke_width=1)
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
 
         else:
-            draw.text((290, y), str(player["order"]), fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
-            draw.text((340, y), player["pos"], fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
+            draw.text(
+                (290, y),
+                str(player["order"]),
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
+            draw.text(
+                (340, y),
+                player["pos"],
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
             draw.text(
                 (420, y),
                 f"{player["name"]} ({batting_avg(player['season']['AB'],player['season']['H'])} PA: {player['season']['PA']})",
                 fill="white",
                 font=font_row,
-                anchor="lm", stroke_fill="#000", stroke_width=1
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
             )
 
     for i, player in enumerate(lineups["home"]):
         if player == None:
             continue
         y = start_y + i * row_gap
-        draw.rounded_rectangle((970,y-20,1640,y+20), fill="#" + home_colour + "CC",
-        outline="#" + home_colour,
-        width=1,
-        radius=5)
-        if 'PITCHES' in player:
-            draw.text((980, y), "Pitcher:", fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
+        draw.rounded_rectangle(
+            (970, y - 20, 1640, y + 20),
+            fill="#" + home_colour + "CC",
+            outline="#" + home_colour,
+            width=1,
+            radius=5,
+        )
+        if "PITCHES" in player:
+            draw.text(
+                (980, y),
+                "Pitcher:",
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
             draw.text(
                 (1110, y),
                 f"{player["name"]} (ER: {player['SEASON']['PITCHER']} BB: {player['SEASON']['PITCHBB']} K: {player['SEASON']['PITCHSO']})",
                 fill="white",
                 font=font_row,
-                anchor="lm", stroke_fill="#000", stroke_width=1)
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
 
         else:
-            draw.text((980, y), str(player["order"]), fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
-            draw.text((1030, y), player["pos"], fill="white", font=font_row, anchor="lm", stroke_fill="#000", stroke_width=1)
+            draw.text(
+                (980, y),
+                str(player["order"]),
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
+            draw.text(
+                (1030, y),
+                player["pos"],
+                fill="white",
+                font=font_row,
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
             draw.text(
                 (1100, y),
                 f"{player["name"]} ({batting_avg(player['season']['AB'],player['season']['H'])} PA: {player['season']['PA']})",
                 fill="white",
                 font=font_row,
-                anchor="lm", stroke_fill="#000", stroke_width=1)
+                anchor="lm",
+                stroke_fill="#000",
+                stroke_width=1,
+            )
 
-    img.save(OUTPUT_FILE)
+    return img
+
 
 def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     global status_timer
@@ -326,17 +390,15 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
         points = [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
 
-        draw.polygon(
-            points, fill="yellow" if occupied else "black"
-        )
+        draw.polygon(points, fill="yellow" if occupied else "black")
 
     situation = payload["situation"]
     linescore = payload["linescore"]
 
     away = linescore["awaytotals"]
-    away['colour'] = away_colour
+    away["colour"] = away_colour
     home = linescore["hometotals"]
-    home['colour'] = home_colour
+    home["colour"] = home_colour
 
     away["name"] = payload["eventaway"]
     home["name"] = payload["eventhome"]
@@ -353,25 +415,25 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     def batter_line(batter):
         line = []
 
-        for type in ["2B","3B","HR","K","BB","SF","SB"]:
+        for type in ["2B", "3B", "HR", "K", "BB", "SF", "SB"]:
             if type == "2B":
-                n = batter['DOUBLE']
+                n = batter["DOUBLE"]
             elif type == "3B":
-                n = batter['TRIPLE']
+                n = batter["TRIPLE"]
             elif type == "HR":
-                n = batter['HR']
+                n = batter["HR"]
             # elif type == "RBI":
             #    n = batter['RBI']
             elif type == "K":
-                n = batter['SO']
+                n = batter["SO"]
             elif type == "BB":
-                n = batter['BB']
+                n = batter["BB"]
             elif type == "HBP":
-                n = batter['HBP']
+                n = batter["HBP"]
             elif type == "SF":
-                n = batter['SF']   
+                n = batter["SF"]
             elif type == "SB":
-                n = batter['SB']      
+                n = batter["SB"]
 
             if n < 1:
                 continue
@@ -382,9 +444,9 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
         return ", ".join(line)
 
-    for player_num in payload['boxscore']:
-        player = payload['boxscore'][player_num]
-        if player['playerid'] == situation['batterid'] and 'PITCHES' not in player:
+    for player_num in payload["boxscore"]:
+        player = payload["boxscore"][player_num]
+        if player["playerid"] == situation["batterid"] and "PITCHES" not in player:
             batter = player
             batter["order"] = str(int(player_num[1:3]))
 
@@ -396,8 +458,6 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
     pitcher["BALLS"] = pitcher["PITCHES"] - pitcher["STRIKES"]
 
-    # Transparent image
-    # img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     template = Image.open(TEMPLATE_FILE).convert("RGBA")
 
     overlay = Image.new("RGBA", template.size, (0, 0, 0, 0))
@@ -456,10 +516,6 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         stroke_width=1,
     )
 
-    # {away['R']} - {home['R']} {home['name']}
-
-    # Inning
-    # draw.text((50, 130), situation["currentinning"], fill="white", font=font_small)
     if situation["currentinning"] == "FINAL":
         draw.text(
             (1787, 845),
@@ -491,7 +547,9 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
             home["player"] = (
                 f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
             )
-            away["player"] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+            away["player"] = (
+                f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+            )
             draw_down_arrow(draw, 1760, 887)
 
         draw.text(
@@ -556,13 +614,14 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
         # First base
         draw_base(1714, 932, first)
-    status_timer = 0    
+    status_timer = 0
     img = Image.alpha_composite(template, overlay)
 
-    img.save(OUTPUT_FILE)
+    return img
 
 
 last_game_mtime = 0
+
 
 def load_game_if_changed():
     global last_game_mtime
@@ -576,6 +635,7 @@ def load_game_if_changed():
 
     return None
 
+
 def get_team_colour(team, default):
     if not isinstance(team, dict):
         return default
@@ -587,11 +647,44 @@ def get_team_colour(team, default):
 
     return colour.replace("#", "")
 
+
 def frame_buffer(img):
-    img = img.convert("RGBA").resize((WIDTH, HEIGHT))
+    img = img.resize((HDMI_WIDTH, HDMI_HEIGHT))
 
     with open(FB, "wb") as fb:
         fb.write(img.tobytes("raw", "BGRA"))
+
+
+def start_rtmp():
+    return subprocess.Popen(
+        [
+            sys.executable,
+            "rtmp_stream.py",
+            "--input",
+            str(FRAME_FILE),
+            "--width",
+            str(RTMP_WIDTH),
+            "--height",
+            str(RTMP_HEIGHT),
+            "--fps",
+            str(RTMP_FPS),
+            "--url",
+            RTMP_URL,
+        ]
+    )
+
+
+def rtmp_frame(img):
+
+    if img.width != RTMP_WIDTH or img.height != RTMP_HEIGHT:
+        img = img.convert("RGBA").resize((RTMP_WIDTH, RTMP_HEIGHT))
+    frame = img.tobytes("raw", "BGRA")
+
+    with open(TEMP_FRAME_FILE, "wb") as f:
+        f.write(frame)
+
+    os.replace(TEMP_FRAME_FILE, FRAME_FILE)
+
 
 def main():
     global status_timer
@@ -600,6 +693,11 @@ def main():
         frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
     except:
         print("Cannot write to Buffer")
+
+    try:
+        start_rtmp()
+    except:
+        print("Failed to make RTMP Stream subprocess")
 
     last_play = 0
 
@@ -623,6 +721,8 @@ def main():
 
         try:
             latest_play = get_latest_play(game_id) if play_lock < 1 else play_lock
+            
+            finished_img = None
 
             if int(latest_play) > int(last_play) or status_timer >= STATUS_TIMEOUT:
                 payload = get_play(game_id, latest_play)
@@ -631,26 +731,24 @@ def main():
                 ac = get_team_colour(away, "000000")
 
                 if int(latest_play) == 1:
-                    render_lineup_sheet(payload, lineup_medium, lineup_small, hc, ac)
+                    finished_img = render_lineup_sheet(payload, lineup_medium, lineup_small, hc, ac)
                 else:
-                    render_scorebug(payload, hc, ac)
+                    finished_img = render_scorebug(payload, hc, ac)
 
                 print(f"Updated graphic for play {latest_play}")
 
                 last_play = latest_play
-
-            finished_img = Image.open(OUTPUT_FILE)
+                
+            if finished_img == None:
+                finished_img = Image.open(OUTPUT_FILE)
+            
             try:
                 league_logo = Image.open(f"images/{competition_img}.png").convert(
                     "RGBA"
                 )
 
                 league_logo.thumbnail((120, 120))
-                # alpha = league_logo.getchannel("A")
-                # alpha = alpha.point(lambda p: int(p * 0.8))
-                # league_logo.putalpha(alpha)
 
-                # logo_layer = Image.new("RGBA", finished_img.size, (0, 0, 0, 0))
                 finished_img.paste(league_logo, (15, 25), league_logo)
             except:
                 print(f"Could'nt work with {competition_img}")
@@ -670,17 +768,12 @@ def main():
                 align="center",
             )
 
-            # finished_img = Image.alpha_composite(finished_img, logo_layer)
-            # finished_img.save(OUTPUT_FILE)
-
-            # surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
-
-            # screen.blit(surface,(0,0))
-            # pygame.display.flip()
             try:
                 frame_buffer(finished_img)
             except:
                 finished_img.save(OUTPUT_FILE)
+
+            rtmp_frame(finished_img)
 
         except Exception as e:
             print("Error:", e)

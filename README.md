@@ -1,172 +1,227 @@
 # Richmond Baseball Scorebug
 
-A self-contained baseball graphics appliance for live streaming games with an ATEM Mini Pro.
+A lightweight, self-contained baseball graphics appliance for the Raspberry Pi 4.
 
-The scorebug automatically retrieves live WBSC game data and overlays professional graphics onto the stream. Match settings can be changed from a mobile phone without requiring a laptop, OBS or a desktop environment.
+The Richmond Baseball Scorebug retrieves live WBSC game data and renders a professional scorebug directly to the Raspberry Pi HDMI output without requiring OBS, X11, Wayland or a desktop environment.
+
+Designed for use with the Blackmagic ATEM Mini Pro, the system provides a dedicated graphics feed that can be controlled entirely from a mobile phone or desktop browser via a built-in web interface.
 
 ---
 
-# How To Use
+## Features
 
-The scorebug is designed to run automatically when powered on.
+* Live WBSC game data
+* HDMI graphics output (1920×1080)
+* Built-in mobile-friendly web interface
+* Automatic lineup card
+* Team colour selection
+* Competition branding
+* Live clock
+* Automatic service restart
+* Headless operation
+* Designed for Raspberry Pi 4
+* No OBS or desktop environment required
 
-## Starting a Game
+---
 
-1. Power on the Raspberry Pi and ATEM Mini Pro.
-2. Wait approximately one minute for the services to start.
-3. Connect a phone to the same network.
-4. Open:
+## Requirements
 
-```text
-http://<pi-ip>:8080
+### Hardware
+
+* Raspberry Pi 4 (2 GB RAM or greater recommended)
+* Raspberry Pi OS Lite (64-bit)
+* HDMI cable
+* Network connection (Wi-Fi, Ethernet or USB 4G modem)
+* Blackmagic ATEM Mini Pro (optional)
+
+### Software
+
+* Python 3.13
+* Git
+
+---
+
+# Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/<your-user>/scorebug.git
+cd scorebug
 ```
 
-5. Enter the WBSC Game ID.
-6. Select the competition:
+Create a virtual environment:
 
-- BBF NBL
-- BBF Div 2
-- BBF Div 3
-- BBF Div 4
-- BBF Div 5
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-7. Select the home and away team colours.
-8. Press **Save**.
+Install dependencies:
 
-The graphics will automatically update.
+```bash
+pip install -r requirements.txt
+```
 
----
+Copy the supplied systemd service files into place:
 
-## Graphics Displayed
+```bash
+sudo cp services/scorebug.service /etc/systemd/system/
+sudo cp services/scorebug-web.service /etc/systemd/system/
+```
 
-The scorebug displays:
+Enable the services:
 
-- Team names
-- Score
-- Inning
-- Outs
-- Balls and strikes count
-- Occupied bases
-- Batter information
-- Pitcher information
-- Competition logo
-- Clock
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable scorebug
+sudo systemctl enable scorebug-web
+```
 
-At the beginning of the game, a lineup card is automatically shown.
+Start the services:
 
----
+```bash
+sudo systemctl start scorebug
+sudo systemctl start scorebug-web
+```
 
-## Changing Games
-
-At any time:
-
-1. Open the web page.
-2. Change the Game ID.
-3. Press **Save**.
-
-The scorebug will automatically switch to the new game without requiring a restart.
+The appliance will now start automatically every time the Raspberry Pi boots.
 
 ---
 
-## Recovering From Failures
+# First Boot
 
-The graphics engine and web interface run as Linux services.
+After approximately one minute, open a browser on the same network and navigate to:
 
-If either process crashes:
+```text
+http://<raspberry-pi-ip>:8080
+```
 
-- It will automatically restart.
-- No user intervention is required.
+The control page allows you to configure the current game.
 
 ---
 
-## Updating The Software
+# Starting a Game
 
-Changes are developed on Windows and pushed to GitHub.
+1. Open the web interface.
+2. Select the competition.
+3. Enter the WBSC Game ID.
+4. Choose the home and away team colours.
+5. Press **Save**.
 
-On the Raspberry Pi:
+The graphics engine automatically reloads the new settings without restarting.
+
+---
+
+# During the Game
+
+The scorebug automatically updates with:
+
+* Team names
+* Runs
+* Inning
+* Balls
+* Strikes
+* Outs
+* Base occupancy
+* Batter
+* Pitcher
+* Competition logo
+* Live clock
+
+At the start of each game a lineup graphic is shown automatically before switching to the live scorebug.
+
+---
+
+# Changing Games
+
+Games can be changed at any time.
+
+Simply update the Game ID from the web interface and press **Save**.
+
+No restart is required.
+
+---
+
+# Updating
+
+To update the appliance:
 
 ```bash
 git pull
 ```
 
-Then either reboot:
-
-```bash
-sudo reboot
-```
-
-or restart the services:
+Restart the services:
 
 ```bash
 sudo systemctl restart scorebug
 sudo systemctl restart scorebug-web
 ```
 
+Or simply reboot:
+
+```bash
+sudo reboot
+```
+
 ---
 
-# System Architecture
+# Architecture
 
-```text
+```
+WBSC Live Data
+        │
+        ▼
+ scorebug.py
+        │
+        ▼
+    Pillow
+        │
+        ▼
+32-bit Framebuffer
+        │
+        ▼
+ Raspberry Pi HDMI
+        │
+        ▼
+ ATEM Mini Pro
+        │
+        ▼
+ Live Stream
+```
+
+The web interface communicates independently with the graphics engine through a shared configuration file.
+
+```
 Phone
-↓
-Web Interface
-↓
+   │
+   ▼
+Flask Web Interface
+   │
+   ▼
 game.json
-↓
+   │
+   ▼
 Scorebug Engine
-↓
-Framebuffer
-↓
-HDMI
-↓
-ATEM Mini Pro
-↓
-YouTube
 ```
-
----
-
-# Components
-
-## scorebug.py
-
-Responsible for:
-
-- Polling WBSC
-- Rendering graphics
-- Rendering lineups
-- Rendering scorebug
-- Adding competition logo
-- Adding clock
-- Writing directly to the framebuffer
-
-## web_control.py
-
-Provides the control webpage.
-
-Settings are stored in:
-
-```text
-game.json
-```
-
-which is automatically reloaded by the graphics engine.
 
 ---
 
 # Services
 
-Two systemd services are used:
+Two systemd services are installed:
 
-- `scorebug.service`
-- `scorebug-web.service`
+| Service                | Purpose               |
+| ---------------------- | --------------------- |
+| `scorebug.service`     | Graphics engine       |
+| `scorebug-web.service` | Web control interface |
 
-Both services are configured to:
+Both services:
 
-- Start automatically at boot.
-- Restart automatically if they fail.
+* Start automatically at boot
+* Restart automatically after failures
 
-Logs may be viewed with:
+View logs with:
 
 ```bash
 journalctl -u scorebug -f
@@ -178,17 +233,21 @@ journalctl -u scorebug-web -f
 
 ---
 
+# Networking
+
+The appliance supports multiple Internet connections including:
+
+* Wi-Fi
+* Ethernet
+* USB 4G modem
+
+When configured, the Raspberry Pi can also provide a private Ethernet network for downstream devices such as an ATEM Mini Pro while automatically routing traffic through the preferred Internet connection.
+
+---
+
 # Development
 
-Development occurs on Windows:
-
-```text
-VS Code
-↓
-GitHub
-↓
-Raspberry Pi
-```
+Development is performed on Windows using VS Code.
 
 Typical workflow:
 
@@ -205,231 +264,22 @@ git pull
 
 ---
 
-# Technical Details
+# Roadmap
 
-## Running Without A Desktop Environment
+Planned features include:
 
-The Raspberry Pi runs without:
-
-- X11
-- Wayland
-- OBS
-- Pygame
-
-Graphics are rendered using:
-
-```text
-WBSC JSON
-↓
-PIL
-↓
-RGB565 conversion
-↓
-/dev/fb0
-↓
-HDMI
-```
-
-This creates a true embedded appliance.
+* Automatic game discovery by competition
+* RTMP/RTSP graphics output
+* Built-in media server
+* Team logos
+* Sponsor graphics
+* Remote management
+* Cloudflare Tunnel support
+* Temperature monitoring
+* ATEM control
 
 ---
 
-## Framebuffer
+## License
 
-The Raspberry Pi runs using the full KMS driver:
-
-```ini
-dtoverlay=vc4-kms-v3d
-```
-
-To force a 32-bit framebuffer, edit:
-
-```bash
-sudo nano /boot/firmware/cmdline.txt
-```
-
-and add/amend the HDMI video mode:
-
-```text
-video=HDMI-A-1:1920x1080M@60
-```
-
-to:
-
-```text
-video=HDMI-A-1:1920x1080M-32@60
-```
-
-This forces the KMS driver to create a 32-bit framebuffer.
-
-Reboot the Pi:
-
-```bash
-sudo reboot
-```
-
-Confirm the framebuffer depth:
-
-```bash
-cat /sys/class/graphics/fb0/bits_per_pixel
-```
-
-which should return:
-
-```text
-32
-```
-
-Images are rendered using Pillow and converted from RGBA to BGRA before being written directly to:
-
-```text
-/dev/fb0
-```
-
-using:
-
-```python
-def frame_buffer(img):
-    img = img.convert("RGBA").resize((WIDTH, HEIGHT))
-
-    with open(FB, "wb") as fb:
-        fb.write(img.tobytes("raw", "BGRA"))
-
-```
-
-This provides:
-
-- 32-bit colour.
-- Smooth anti-aliased fonts.
-- No colour banding.
-- No desktop environment.
-- No X11.
-- No Wayland.
-- No OBS.
-- No Pygame.
-
-while maintaining a true embedded appliance architecture.
-
-```text
-WBSC JSON
-        ↓
-scorebug.py
-        ↓
-PIL
-        ↓
-RGBA
-        ↓
-RGBA→BGRA
-        ↓
-/dev/fb0 (32-bit)
-        ↓
-vc4-kms-v3d
-        ↓
-HDMI
-        ↓
-ATEM Mini Pro
-        ↓
-YouTube
-```
-
----
-
-## Console Configuration
-
-To create a dedicated graphics output:
-
-- `getty@tty1` is disabled.
-- The Linux kernel console is moved from `tty1` to `tty3`.
-
-This prevents:
-
-- Login prompts.
-- Kernel messages.
-- Blinking cursors.
-
-appearing over the graphics.
-
----
-
-## Service Files
-
-### scorebug.service
-
-```ini
-[Unit]
-Description=Baseball Scorebug
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/richmond/scorebug
-ExecStart=/home/richmond/scorebug/.venv/bin/python /home/richmond/scorebug/scorebug.py
-Restart=always
-RestartSec=3
-User=richmond
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### scorebug-web.service
-
-```ini
-[Unit]
-Description=Baseball Scorebug Web Interface
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/richmond/scorebug
-ExecStart=/home/richmond/scorebug/.venv/bin/python /home/richmond/scorebug/web_control.py
-Restart=always
-RestartSec=3
-User=richmond
-
-[Install]
-WantedBy=multi-user.target
-```
-
----
-
-# Future Enhancements
-
-- ATEM control
-- Stream start and stop
-- Sponsor graphics
-- Team logos
-- Temperature monitoring
-- Cloudflare Tunnel remote access
-- SIM modem operation
-- Full remote management
-
----
-
-# Final Architecture
-
-```text
-Phone
-    ↓
-Flask Web Interface
-    ↓
-game.json
-    ↓
-scorebug.py
-    ↓
-PIL
-    ↓
-RGBA→BGRA
-    ↓
-Framebuffer
-    ↓
-HDMI
-    ↓
-ATEM Mini Pro
-    ↓
-YouTube
-```
-
-The result is a fully self-contained baseball broadcast appliance.
+MIT License.
