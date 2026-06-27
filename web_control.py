@@ -329,7 +329,7 @@ def index():
 
 
 
-            <button class="save" type="submit">Save settings</button>
+            <button id="general-save" class="save" type="submit">Save Settings</button>
 
             <details style="margin-top: 30px;">
                 <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
@@ -505,19 +505,29 @@ def index():
         }}
 
         async function saveRtmp() {{
-          await fetch("/api/rtmp", {{
-            method: "POST",
-            headers: {{"Content-Type": "application/json"}},
-            body: JSON.stringify({{
-              url: document.getElementById("rtmp-url").value || "rtmp://localhost/live/scorebug",
-              width: document.getElementById("rtmp-width").value,
-              height: document.getElementById("rtmp-height").value,
-              fps: document.getElementById("rtmp-fps").value,
-              pixfmt: document.getElementById("rtmp-pixfmt").value,
-            }})
-        }});
+          const btn = document.getElementById("rtmp-save");
 
-          await loadRtmp();
+          btn.disabled = true;
+          btn.textContent = "Saving...";
+
+          try {{
+            await fetch("/api/rtmp", {{
+              method: "POST",
+              headers: {{"Content-Type": "application/json"}},
+              body: JSON.stringify({{
+                url: document.getElementById("rtmp-url").value || "rtmp://localhost/live/scorebug",
+                width: document.getElementById("rtmp-width").value || 1920,
+                height: document.getElementById("rtmp-height").value || 1080,
+                fps: document.getElementById("rtmp-fps").value || 25,
+                pixfmt: document.getElementById("rtmp-pixfmt").value || "bgra",
+                }})
+            }});
+
+            await loadRtmp();
+          }} finally {{
+            btn.disabled = false;
+            btn.textContent = "Save RTMP Settings";
+          }}
         }}
 
         async function toggleRtmpLive() {{
@@ -542,6 +552,14 @@ def index():
         loadRtmp();
         checkLiveRtmp();
         setInterval(checkLiveRtmp, 2000);
+        </script>
+
+        <script>
+        document.querySelector("form").addEventListener("submit", () => {{
+          const btn = document.getElementById("general-save");
+          btn.disabled = true;
+          btn.textContent = "Saving...";
+        }});
         </script>
     </body>
     </html>
