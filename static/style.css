@@ -1,0 +1,55 @@
+body {
+	font-family: Arial, sans-serif;
+	font-size: 22px;
+	padding: 20px;
+	background: #111;
+	color: white;
+}
+h1 {
+	font-size: 34px;
+}
+label {
+	display: block;
+	margin-top: 24px;
+	margin-bottom: 8px;
+	font-weight: bold;
+}
+input {
+	width: 100%;
+	font-size: 24px;
+	padding: 14px;
+	box-sizing: border-box;
+	border-radius: 8px;
+	border: 1px solid #555;
+}
+button {
+	font-size: 24px;
+	padding: 16px 22px;
+	margin: 6px 4px;
+	border-radius: 10px;
+	border: 2px solid #fff;
+	cursor: pointer;
+}
+.save {
+	width: 100%;
+	margin-top: 32px;
+	padding: 22px;
+	background: #00aa44;
+	color: white;
+	font-weight: bold;
+}
+.swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 10px;
+}
+.swatch {
+	min-width: 120px;
+	color: white;
+	text-shadow: 1px 1px 2px black;
+}
+.white {
+	color: black;
+	text-shadow: none;
+}
