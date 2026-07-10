@@ -667,7 +667,7 @@ def main():
     global status_timer
 
     try:
-        frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
+        frame_buffer(Image.new("RGBA", (1920, 1080), ("#FF66C4")))
     except Exception as e:
         print("Cannot write to Buffer")
         print(f"Error {e}")
