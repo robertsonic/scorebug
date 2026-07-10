@@ -668,8 +668,9 @@ def main():
 
     try:
         frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
-    except:
+    except Exception as e:
         print("Cannot write to Buffer")
+        print(f"Error {e}")
 
     last_play = 0
 
