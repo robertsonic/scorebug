@@ -19,12 +19,16 @@ WIDTH = 1920
 HEIGHT = 1080
 HDMI_WIDTH = WIDTH
 HDMI_HEIGHT = HEIGHT
-
+FPS = 25
 
 FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame"
 TEMP_FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame.tmp"
 
+
 STATUS_TIMEOUT = 120
+
+TEMPLATE = Image.open(TEMPLATE_FILE).convert("RGBA")
+ELEMENTS = {}
 
 status_timer = 0
 
@@ -121,14 +125,14 @@ def image_logic(url):
     return image_path
 
 
-def draw_up_arrow(draw, x, y, size=10, fill="white"):
-    points = [(x, y - size), (x + size, y + size), (x - size, y + size)]  # top
+def calculate_up_arrow(x, y, size=10, fill="white"):
+    return [(x, y - size), (x + size, y + size), (x - size, y + size)]  # top
 
     draw.polygon(points, fill=fill)
 
 
-def draw_down_arrow(draw, x, y, size=10, fill="white"):
-    points = [(x - size, y - size), (x + size, y - size), (x, y + size)]
+def calculate_down_arrow(x, y, size=10, fill="white"):
+    return [(x - size, y - size), (x + size, y - size), (x, y + size)]
 
     draw.polygon(points, fill=fill)
 
@@ -378,32 +382,37 @@ def render_lineup_sheet(payload, font_title, font_row, home_colour, away_colour)
     return img
 
 
-def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
+def calculate_elements(payload, home_colour="000000", away_colour="FFFFFF"):
     global status_timer
-
-    def draw_base(cx, cy, occupied=False):
-        size = 32
-
-        points = [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
-
-        draw.polygon(points, fill="yellow" if occupied else "black")
+    global ELEMENTS
+    ELEMENTS = {
+        "away_score": {},
+        "home_score": {},
+        "away_name": {},
+        "home_name": {},
+        "inning": {},
+        "bases": {},
+        "away_player": {},
+        "home_player": {},
+        "status": {},
+    }
 
     situation = payload["situation"]
     linescore = payload["linescore"]
 
-    away = linescore["awaytotals"]
-    away["colour"] = away_colour
-    home = linescore["hometotals"]
-    home["colour"] = home_colour
+    ELEMENTS["away_score"]["text"] = linescore["awaytotals"]["R"]
+    ELEMENTS["away_score"]["colour"] = away_colour
+    ELEMENTS["home_score"]["text"] = linescore["hometotals"]["R"]
+    ELEMENTS["home_score"]["colour"] = home_colour
 
-    away["name"] = payload["eventaway"]
-    home["name"] = payload["eventhome"]
+    ELEMENTS["away_name"]["text"] = payload["eventaway"]
+    ELEMENTS["home_name"]["text"] = payload["eventhome"]
 
     inning = situation["inning"]
 
     inning_number, half = inning.split(".")
 
-    inning_number = get_inning(inning_number)
+    ELEMENTS["inning"]["text"] = get_inning(inning_number)
 
     batter = {}
     pitcher = {}
@@ -454,26 +463,71 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
     pitcher["BALLS"] = pitcher["PITCHES"] - pitcher["STRIKES"]
 
-    template = Image.open(TEMPLATE_FILE).convert("RGBA")
+    ELEMENTS["bases"] = {"points": []}
 
-    overlay = Image.new("RGBA", template.size, (0, 0, 0, 0))
+    if occupied(situation["runner1"]):  # 1st
+        ELEMENTS["bases"]["points"].append(calculate_base(1714, 932))
+    if occupied(situation["runner2"]):  # 2nd
+        ELEMENTS["bases"]["points"].append(calculate_base(1673, 890))
+    if occupied(situation["runner3"]):  # 3rd
+        ELEMENTS["bases"]["points"].append(calculate_base(1632, 931))
+
+        # status_timer < STATUS_TIMEOUT
+        # and len(payload["platecount"]) > 0
+        # and payload["platecount"][0]["type"] == 0
+
+    ELEMENTS["status"]["text"] = " ".join(
+        payload["platecount"][0]["label"].split("<br>")
+    )
+    # away["player"] = status[0]
+    # home["player"] = status[1] if len(status) > 1 else ""
+
+    if half == "0":
+        ELEMENTS["away_player"][
+            "text"
+        ] = f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
+        ELEMENTS["home_player"][
+            "text"
+        ] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+        ELEMENTS["inning"]["points"] = calculate_up_arrow(1760, 885)
+    else:
+        ELEMENTS["home_player"][
+            "text"
+        ] = f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
+        ELEMENTS["away_player"][
+            "text"
+        ] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
+        ELEMENTS["inning"]["points"] = calculate_down_arrow(1760, 887)
+
+
+def calculate_base(cx, cy, occupied=False):
+    size = 32
+    return [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
+    # draw.polygon(points, fill="yellow" if occupied else "black")
+
+
+def render_scorebug():
+
+    overlay = Image.new("RGBA", TEMPLATE.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
     # AWAY COLOUR
-    draw.rectangle((852, 932, 1242, 1017), fill="#" + away["colour"] + "99")
+    draw.rectangle(
+        (852, 932, 1242, 1017), fill="#" + ELEMENTS["away_score"]["colour"] + "CC"
+    )
 
     # HOME COLOUR
     draw.polygon(
         [(1242, 932), (1570, 932), (1655, 1017), (1242, 1017)],
         # draw.rectangle(
         #    (1242, 932, 1442,1015),
-        fill="#" + home["colour"] + "99",
+        fill="#" + ELEMENTS["home_score"]["colour"] + "CC",
     )
 
     # Score
     draw.text(
         (867, 950),
-        f"{away['name']}",
+        f"{ELEMENTS['away_name']}",
         fill="white",
         font=font_large,
         anchor="lt",
@@ -483,7 +537,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     )
     draw.text(
         (1177, 950),
-        f"{away['R']}",
+        f"{ELEMENTS['away_runs']}",
         fill="white",
         font=font_large,
         anchor="rt",
@@ -493,7 +547,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     )
     draw.text(
         (1260, 950),
-        f"{home['name']}",
+        f"{ELEMENTS['home_name']}",
         fill="white",
         font=font_large,
         anchor="lt",
@@ -503,7 +557,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     )
     draw.text(
         (1570, 950),
-        f"{home['R']}",
+        f"{ELEMENTS['home_runs']}",
         fill="white",
         font=font_large,
         anchor="rt",
@@ -512,104 +566,66 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         stroke_width=1,
     )
 
-    if situation["currentinning"] == "FINAL":
-        draw.text(
-            (1787, 845),
-            "FINAL",
-            fill="white",
-            font=font_small,
-            align="center",
-            anchor="mb",
-        )
-    else:
+    # INNING
+    draw.text(
+        (1790, 885),
+        ELEMENTS["inning"]["text"],
+        fill="white",
+        font=font_medium,
+        align="center",
+        anchor="lm",
+    )
+    draw.polygon(ELEMENTS["inning"]["points"], fill="white")
+    # Outs
+    draw.text(
+        (1787, 845),
+        ELEMENTS["outs"]["text"],
+        fill="white",
+        font=font_small,
+        anchor="mb",
+        align="center",
+    )
+    # Count
+    draw.text(
+        (1800, 1000),
+        ELEMENTS["count"]["text"],
+        fill="white",
+        font=font_medium,
+        anchor="mb",
+        align="center",
+    )
+    # Away Player
+    draw.text(
+        (890, 1030),
+        ELEMENTS["away_player"]["text"],
+        fill="white",
+        font=font_small,
+        anchor="lm",
+        align="left",
+    )
+    # Home Player
+    draw.text(
+        (1280, 1030),
+        ELEMENTS["home_player"]["text"],
+        fill="white",
+        font=font_small,
+        anchor="lm",
+        align="left",
+    )
+    # Bases
+    for base in ELEMENTS["bases"]["points"]:
+        draw.polygon(base, fill="yellow")
 
-        if (
-            status_timer < STATUS_TIMEOUT
-            and len(payload["platecount"]) > 0
-            and payload["platecount"][0]["type"] == 0
-        ):  # Basically if there isn't an AB going on
-            status = payload["platecount"][0]["label"].split("<br>")
-            away["player"] = status[0]
-            home["player"] = status[1] if len(status) > 1 else ""
-        elif half == "0":
-            away["player"] = (
-                f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
-            )
-            home["player"] = (
-                f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
-            )
-            draw_up_arrow(draw, 1760, 885)
-        else:
-            home["player"] = (
-                f"{batter['order']}: {batter['POS'].split("/")[-1]} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
-            )
-            away["player"] = (
-                f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
-            )
-            draw_down_arrow(draw, 1760, 887)
+    # Home Player
+    draw.text(
+        (1280, 730),
+        ELEMENTS["status"]["text"],
+        fill="white",
+        font=font_small,
+        anchor="lm",
+        align="left",
+    )
 
-        draw.text(
-            (1790, 885),
-            f"{inning_number}",
-            fill="white",
-            font=font_medium,
-            align="center",
-            anchor="lm",
-        )
-
-        # Outs
-        draw.text(
-            (1787, 845),
-            f"{situation['outs']} OUTS",
-            fill="white",
-            font=font_small,
-            anchor="mb",
-            align="center",
-        )
-
-        # Count
-        draw.text(
-            (1800, 1000),
-            f"{situation['balls']}-{situation['strikes']}",
-            fill="white",
-            font=font_medium,
-            anchor="mb",
-            align="center",
-        )
-
-        # Away Player
-        draw.text(
-            (890, 1030),
-            f"{away['player']}",
-            fill="white",
-            font=font_small,
-            anchor="lm",
-            align="left",
-        )
-
-        # Home Player
-        draw.text(
-            (1280, 1030),
-            f"{home['player']}",
-            fill="white",
-            font=font_small,
-            anchor="lm",
-            align="left",
-        )
-
-        # Bases
-        first = occupied(situation["runner1"])
-        second = occupied(situation["runner2"])
-        third = occupied(situation["runner3"])
-
-        # Second base
-        draw_base(1673, 890, second)
-
-        # Third base
-        draw_base(1632, 931, third)
-
-        # First base
-        draw_base(1714, 932, first)
     status_timer = 0
     img = Image.alpha_composite(template, overlay)
 
@@ -672,9 +688,26 @@ def main():
         print("Cannot write to Buffer")
         print(f"Error {e}")
 
-    last_play = 0
+    fps_interval_ns = 1_000_000_000 // FPS
+
+    now_ns = time.perf_counter_ns()
+    last_frame_ns = now_ns
+    last_three_second_ns = now_ns
 
     while True:
+        now_ns = time.perf_counter_ns()
+
+        if now_ns - last_three_second_ns >= 3_000_000_000:
+
+            last_three_second_ns += 3_000_000_000
+
+        if now_ns - last_frame_ns >= fps_interval_ns:
+
+            last_frame_ns += fps_interval_ns
+
+        time.sleep(0.001)
+        continue
+
         now = datetime.now(ZoneInfo("Europe/London"))
         clock = now.strftime("%H:%M %Z")
 
@@ -704,9 +737,12 @@ def main():
                 ac = get_team_colour(away, "000000")
 
                 if int(latest_play) == 1:
-                    finished_img = render_lineup_sheet(payload, lineup_medium, lineup_small, hc, ac)
+                    finished_img = render_lineup_sheet(
+                        payload, lineup_medium, lineup_small, hc, ac
+                    )
                 else:
-                    finished_img = render_scorebug(payload, hc, ac)
+                    calculate_elements(payload, hc, ac)
+                    finished_img = render_scorebug()
 
                 print(f"Updated graphic for play {latest_play}")
 
