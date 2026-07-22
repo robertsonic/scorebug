@@ -36,9 +36,9 @@
             id="play_lock"
             name="play_lock"
             type="number"
-            min="0"
+            min="-1"
             value="{{ game.get('play_lock', 0) }}"
-            placeholder="Leave at 0 or blank for live playback"
+            placeholder="Leave at 0 or blank for live playback, -1 for replay"
         >            
         <label>Away colour</label>
         <input id="away_colour" name="away_colour" value="{{ away_colour|safe }}">
@@ -72,36 +72,36 @@
                 "
             >Press refresh...</pre>
             <fieldset>
-                <legend>RTMP Stream</legend>
+                <legend>SRT Stream</legend>
                 <label>
-                  RTMP URL
-                  <input id="rtmp-url" type="text" placeholder="rtmp://localhost/live/scorebug">
+                  SRT URL
+                  <input id="srt-url" type="text" placeholder="srt://localhost:8890?mode=caller&streamid=publish:scorebug">
                 </label>
                 <label>
                   Width
-                  <input id="rtmp-width" type="number" value="1920">
+                  <input id="srt-width" type="number" value="1920">
                 </label>
                 <label>
                   Height
-                  <input id="rtmp-height" type="number" value="1080">
+                  <input id="srt-height" type="number" value="1080">
                 </label>
                 <label>
                   FPS
-                  <input id="rtmp-fps" type="number" value="25">
+                  <input id="srt-fps" type="number" value="25">
                 </label>
                 <label>
-                  Pixel Format
-                  <input id="rtmp-pixfmt" type="text" value="bgra">
+                  Video Bitrate
+                  <input id="srt-bitrate" type="text" value="4M">
                 </label>
-                <div class="rtmp-actions">
-                  <button type="button" id="rtmp-load">Load RTMP Settings</button>
-                  <button type="button" id="rtmp-save">Save RTMP Settings</button>
-                  <button type="button" id="rtmp-live">Go LIVE</button>
+                <div class="srt-actions">
+                  <button type="button" id="srt-load">Load SRT Settings</button>
+                  <button type="button" id="srt-save">Save SRT Settings</button>
+                  <button type="button" id="srt-live">START SRT</button>
                 </div>
-                <h2 id="rtmp-status">RTMP: unknown</h2>
+                <h2 id="srt-status">SRT: unknown</h2>
                 <h4>Errors:</h4>
                 <pre
-                id="rtmp_status"
+                id="srt_status"
                 style="
                     background: #000;
                     color: #0f0;
@@ -186,79 +186,93 @@
         }
     </script>
     <script>
-    async function loadRtmp() {
-      const res = await fetch("/api/rtmp");
+    async function loadSrt() {
+      const res = await fetch("/api/srt");
       const data = await res.json();
-      const rtmp = data.rtmp || {};
-      document.getElementById("rtmp-url").value = rtmp.url || "";
-      document.getElementById("rtmp-width").value = rtmp.width || 1920;
-      document.getElementById("rtmp-height").value = rtmp.height || 1080;
-      document.getElementById("rtmp-fps").value = rtmp.fps || 25;
-      document.getElementById("rtmp-pixfmt").value = rtmp.pixfmt || "bgra";
+      const srt = data.srt || {};
+      document.getElementById("srt-url").value = srt.url || "";
+      document.getElementById("srt-width").value = srt.width || 1920;
+      document.getElementById("srt-height").value = srt.height || 1080;
+      document.getElementById("srt-fps").value = srt.fps || 25;
+      document.getElementById("srt-bitrate").value = srt.bitrate || "4M";
       
     }
-    async function checkLiveRtmp() {
-      const res = await fetch("/api/rtmp");
+    async function checkLiveSrt() {
+      const res = await fetch("/api/srt");
       const data = await res.json();
-      document.getElementById("rtmp-status").textContent =
-        data.live ? "RTMP: LIVE" : "RTMP: offline";
-      document.getElementById("rtmp-live").textContent =
-        data.live ? "Stop LIVE" : "Go LIVE";
-      
-      if (data.process_output) document.getElementById("rtmp_status").textContent = data.process_output
-      
+
+      document.getElementById("srt-status").textContent =
+        data.live ? "SRT: LIVE" : "SRT: OFFLINE";
+
+      document.getElementById("srt-live").textContent =
+        data.live ? "STOP SRT" : "START SRT";
+
+      if (data.message) {
+        document.getElementById("srt_status").textContent =
+          data.message;
+      }
     }
-    async function saveRtmp() {
-      const btn = document.getElementById("rtmp-save");
+    async function saveSrt() {
+      const btn = document.getElementById("srt-save");
       btn.disabled = true;
       btn.textContent = "Saving...";
       try {
-        await fetch("/api/rtmp", {
+        await fetch("/api/srt", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
-            url: document.getElementById("rtmp-url").value || "rtmp://localhost/live/scorebug",
-            width: document.getElementById("rtmp-width").value || 1920,
-            height: document.getElementById("rtmp-height").value || 1080,
-            fps: document.getElementById("rtmp-fps").value || 25,
-            pixfmt: document.getElementById("rtmp-pixfmt").value || "bgra",
+            url: document.getElementById("srt-url").value || "srt://localhost/live/scorebug",
+            width: document.getElementById("srt-width").value || 1920,
+            height: document.getElementById("srt-height").value || 1080,
+            fps: document.getElementById("srt-fps").value || 25,
+            bitrate: document.getElementById("srt-bitrate").value || "4M",
             })
         });
-        await loadRtmp();
+        await loadSrt();
       } finally {
         btn.disabled = false;
-        btn.textContent = "Save RTMP Settings";
+        btn.textContent = "Save SRT Settings";
       }
     }
-    async function toggleRtmpLive() {
-      const current = await fetch("/api/rtmp").then(r => r.json());
-      await fetch("/api/rtmp/live", {
+    async function toggleSrtLive() {
+      const current = await fetch("/api/srt").then(response => response.json());
+
+      const response = await fetch("/api/srt/live", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          live: !current.live,
-          rtmp: current.rtmp
+          live: !current.live
         })
       });
-      await loadRtmp();
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        document.getElementById("srt_status").textContent =
+          result.message || "Unable to request SRT state change";
+      }
     }
-    loadRtmp();
-    checkLiveRtmp();
+
+    loadSrt();
+    checkLiveSrt();
+    
     const events = new EventSource("/events");
-    events.addEventListener("rtmp", (event) => {
+    events.addEventListener("srt", (event) => {
         const data = JSON.parse(event.data);
-        document.getElementById("rtmp-status").textContent =
-            data.live ? "RTMP: LIVE" : "RTMP: offline";
-        document.getElementById("rtmp-live").textContent =
-            data.live ? "Stop LIVE" : "Go LIVE";
+        document.getElementById("srt-status").textContent =
+            data.live ? "SRT: LIVE" : "SRT: offline";
+        document.getElementById("srt-live").textContent =
+            data.live ? "STOP SRT" : "START SRT";
         if (data.message) {
-            document.getElementById("rtmp_status").textContent = data.message;
+            document.getElementById("srt_status").textContent = data.message;
         }
     });
 
-    events.addEventListener("rtmp_log", (event) => {
+    events.addEventListener("srt_log", (event) => {
         const data = JSON.parse(event.data);
-        const box = document.getElementById("rtmp_status");
+        const box = document.getElementById("srt_status");
 
         box.textContent += data.line + "\n";
 
@@ -267,9 +281,9 @@
     });
     </script>
     <script>
-    document.getElementById("rtmp-load").addEventListener("click", loadRtmp);
-    document.getElementById("rtmp-save").addEventListener("click", saveRtmp);
-    document.getElementById("rtmp-live").addEventListener("click", toggleRtmpLive);
+    document.getElementById("srt-load").addEventListener("click", loadSrt);
+    document.getElementById("srt-save").addEventListener("click", saveSrt);
+    document.getElementById("srt-live").addEventListener("click", toggleSrtLive);
     document.getElementById("general-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       

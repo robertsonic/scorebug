@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, render_template, Response
 import queue
-import threading
 import json
 import os
 import tempfile
@@ -8,17 +7,39 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import subprocess
-import sys
-import psutil
+import threading
 
 app = Flask(__name__)
 GAME_FILE = "game.json"
-EVENTS = queue.Queue()
-RTMP_PROCESS = None
+EVENT_CLIENTS = []
+EVENT_CLIENTS_LOCK = threading.Lock()
+
+SRT_RUNTIME_STATE = {
+    "live": False,
+    "status": "OFFLINE",
+    "message": "SRT is OFFLINE",
+    "pid": None,
+}
 
 
 def send_event(event, data):
-    EVENTS.put({"event": event, "data": data})
+    message = {
+        "event": event,
+        "data": data,
+    }
+
+    with EVENT_CLIENTS_LOCK:
+        clients = list(EVENT_CLIENTS)
+
+    for client_queue in clients:
+        try:
+            client_queue.put_nowait(message)
+        except queue.Full:
+            try:
+                client_queue.get_nowait()
+                client_queue.put_nowait(message)
+            except (queue.Empty, queue.Full):
+                pass
 
 
 def run_cmd(cmd):
@@ -28,41 +49,6 @@ def run_cmd(cmd):
         ).strip()
     except Exception:
         return ""
-
-
-def watch_process_output(proc):
-    for line in proc.stdout:
-        send_event("rtmp_log", {"line": line.rstrip()})
-
-    send_event(
-        "rtmp",
-        {
-            "live": False,
-            "message": "RTMP process exited",
-        },
-    )
-
-
-def start_rtmp(ff, w, h, f, url):
-    return subprocess.Popen(
-        [
-            sys.executable,
-            "rtmp_stream.py",
-            "--input",
-            str(ff),
-            "--width",
-            str(w),
-            "--height",
-            str(h),
-            "--fps",
-            str(f),
-            "--url",
-            url,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
 
 
 def load_game():
@@ -196,13 +182,31 @@ def fetch_games(competition):
 
 @app.route("/events")
 def events():
-    def stream():
-        while True:
-            msg = EVENTS.get()
-            yield f"event: {msg['event']}\n"
-            yield f"data: {json.dumps(msg['data'])}\n\n"
+    client_queue = queue.Queue(maxsize=20)
 
-    return Response(stream(), mimetype="text/event-stream")
+    with EVENT_CLIENTS_LOCK:
+        EVENT_CLIENTS.append(client_queue)
+
+    def stream():
+        try:
+            while True:
+                msg = client_queue.get()
+
+                yield f"event: {msg['event']}\n"
+                yield f"data: {json.dumps(msg['data'])}\n\n"
+        finally:
+            with EVENT_CLIENTS_LOCK:
+                if client_queue in EVENT_CLIENTS:
+                    EVENT_CLIENTS.remove(client_queue)
+
+    return Response(
+        stream(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.route("/api/network-status")
@@ -261,13 +265,17 @@ def save():
     if play_lock_raw:
         play_lock = int(play_lock_raw)
 
-    data = {
-        "id": int(request.form["id"]),
-        "competition": request.form["competition"],
-        "home": {"colour": request.form["home_colour"].replace("#", "")},
-        "away": {"colour": request.form["away_colour"].replace("#", "")},
-        "play_lock": play_lock,
-    }
+    data = load_game()
+
+    data.update(
+        {
+            "id": int(request.form["id"]),
+            "competition": request.form["competition"],
+            "home": {"colour": request.form["home_colour"].replace("#", "")},
+            "away": {"colour": request.form["away_colour"].replace("#", "")},
+            "play_lock": play_lock,
+        }
+    )
 
     save_game(data)
     return jsonify({"ok": True})
@@ -300,89 +308,107 @@ def save():
     # """
 
 
-def pid_exists(pid):
-    return psutil.pid_exists(pid)
-
-
-@app.get("/api/rtmp")
-def get_rtmp():
-    global RTMP_PROCESS
+@app.get("/api/srt")
+def get_srt():
     game = load_game()
-    rtmp = game.get("rtmp", {})
 
-    pid = (
-        0
-        if RTMP_PROCESS is None or RTMP_PROCESS.poll() is not None
-        else RTMP_PROCESS.pid
+    srt = game.get(
+        "srt",
+        {
+            "live_requested": False,
+            "url": "",
+            "width": 1920,
+            "height": 1080,
+            "fps": 25,
+            "bitrate": "4M",
+        },
     )
-    process_output = [""]
 
-    if RTMP_PROCESS is not None and pid == 0:
-        try:
-            # pid = RTMP_PROCESS.pid
-            process_output = RTMP_PROCESS.stdout.read().split("\n")[-10:]
-        except:
-            1
-
-    # if pid != 0:
-    #     RTMP_PROCESS.get("pid",0) = RTMP_PROCESS.get("pid",0) if pid_exists(RTMP_PROCESS.get("pid",0)) else 0
-
-    return {"rtmp": rtmp, "live": pid != 0, "process_output": "\n".join(process_output)}
+    return {
+        "srt": srt,
+        "live": SRT_RUNTIME_STATE["live"],
+        "status": SRT_RUNTIME_STATE["status"],
+        "message": SRT_RUNTIME_STATE["message"],
+        "pid": SRT_RUNTIME_STATE["pid"],
+    }
 
 
-@app.post("/api/rtmp")
-def save_rtmp():
-    data = request.json
-
+@app.post("/api/srt")
+def save_srt():
+    data = request.json or {}
     game = load_game()
 
-    game["rtmp"] = {
-        "url": data.get("url", ""),
+    existing = game.get("srt", {})
+
+    game["srt"] = {
+        "live_requested": bool(existing.get("live_requested", False)),
+        "url": str(data.get("url", "")).strip(),
         "width": int(data.get("width", 1920)),
         "height": int(data.get("height", 1080)),
         "fps": int(data.get("fps", 25)),
-        "pixfmt": data.get("pixfmt", "bgra"),
+        "bitrate": str(data.get("bitrate", "4M")),
     }
 
     save_game(game)
-    return {"ok": True, "rtmp": game["rtmp"]}
-
-
-@app.post("/api/rtmp/live")
-def toggle_rtmp_live():
-    global RTMP_PROCESS
-    data = request.json
-    live = bool(data.get("live"))
-
-    if live:
-        RTMP_PROCESS = start_rtmp(
-            tempfile.gettempdir() + "/scorebug.frame",
-            int(data.get("rtmp", {}).get("width", 1920)),
-            int(data.get("rtmp", {}).get("height", 1080)),
-            int(data.get("rtmp", {}).get("fps", 25)),
-            data.get("rtmp", {}).get("url", ""),
-        )
-
-        threading.Thread(
-            target=watch_process_output,
-            args=(RTMP_PROCESS,),
-            daemon=True,
-        ).start()
-
-        send_event("rtmp", {"live": True, "message": "RTMP Started"})
-
-    else:
-        try:
-            os.kill(RTMP_PROCESS.pid, 9)
-        except:
-            print(f"Cannot kill RTMP process")
-
-        RTMP_PROCESS = None
-        send_event("rtmp", {"live": False, "message": "RTMP Stopped"})
 
     return {
         "ok": True,
-        "live": live,
+        "srt": game["srt"],
+    }
+
+
+@app.post("/api/srt/state")
+def update_srt_state():
+    data = request.json or {}
+
+    SRT_RUNTIME_STATE["live"] = bool(data.get("live", False))
+    SRT_RUNTIME_STATE["status"] = str(
+        data.get(
+            "status",
+            "LIVE" if SRT_RUNTIME_STATE["live"] else "OFFLINE",
+        )
+    )
+    SRT_RUNTIME_STATE["message"] = str(data.get("message", ""))
+    SRT_RUNTIME_STATE["pid"] = data.get("pid")
+
+    send_event("srt", dict(SRT_RUNTIME_STATE))
+
+    return {
+        "ok": True,
+        "srt_state": SRT_RUNTIME_STATE,
+    }
+
+
+@app.post("/api/srt/live")
+def request_srt_live():
+    data = request.json or {}
+    live_requested = bool(data.get("live", False))
+
+    game = load_game()
+    srt = game.setdefault("srt", {})
+
+    if live_requested and not str(srt.get("url", "")).strip():
+        return {
+            "ok": False,
+            "message": "An SRT URL is required",
+        }, 400
+
+    srt["live_requested"] = live_requested
+    save_game(game)
+
+    send_event(
+        "srt",
+        {
+            "live": SRT_RUNTIME_STATE["live"],
+            "status": "starting" if live_requested else "stopping",
+            "message": ("Starting SRT..." if live_requested else "Stopping SRT..."),
+            "pid": SRT_RUNTIME_STATE["pid"],
+        },
+    )
+
+    return {
+        "ok": True,
+        "live_requested": live_requested,
     }
 
 

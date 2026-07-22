@@ -12,6 +12,8 @@ from multiprocessing.queues import Queue
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
+import threading
+import requests
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -19,8 +21,34 @@ WIDTH = 1920
 HEIGHT = 1080
 FPS = 25
 FB = "/dev/fb0"
-TEMPLATE_FILE = "templatev2.png"
+TEMPLATE_FILE = "templatev3.png"
 MAGENTA = "#FF00FF"
+
+
+def report_srt_state(
+    live: bool,
+    status: str,
+    message: str,
+    pid: int | None = None,
+) -> None:
+    payload = {
+        "live": live,
+        "status": status,
+        "message": message,
+        "pid": pid,
+    }
+
+    def send() -> None:
+        try:
+            requests.post(
+                "http://127.0.0.1:8080/api/srt/state",
+                json=payload,
+                timeout=2,
+            )
+        except requests.RequestException as exc:
+            print(f"Could not report SRT state: {exc}")
+
+    threading.Thread(target=send, daemon=True).start()
 
 
 @dataclass
@@ -54,7 +82,8 @@ class FrameEngine:
         self.state: dict[str, Any] = {}
         self.state_changed_ns = time.perf_counter_ns()
         self.ffmpeg: subprocess.Popen[bytes] | None = None
-
+        self.last_srt_report_ns = 0
+        self.srt_report_interval_ns = 5_000_000_000
         # The most recently completed raw video frame.
         #
         # bytes is immutable, so the writer can safely keep using an older frame
@@ -107,15 +136,39 @@ class FrameEngine:
         if latest is None:
             return
 
+        stream = latest.get("stream")
+
+        if stream is not None:
+            live = bool(stream.get("live", False))
+            command = stream.get("ffmpeg_command")
+
+            if live and command:
+                if command != self.config.ffmpeg_command:
+                    self._close_ffmpeg()
+                    self.config.ffmpeg_command = command
+
+                self._ensure_ffmpeg()
+
+            else:
+                self._close_ffmpeg()
+                self.config.ffmpeg_command = None
+
         command = latest.get("command", "update")
+
         if command == "blank":
             self.scene = "blank"
             self.state = {}
+
         elif command == "update":
             self.scene = latest.get("scene", "scorebug")
             self.state = copy.deepcopy(latest.get("state", {}))
+
         elif command == "reload_assets":
             self.template = self._load_template(self.config.template_file)
+
+        elif command == "stream":
+            # The stream section above has already been handled.
+            pass
 
         self.state_changed_ns = time.perf_counter_ns()
 
@@ -129,10 +182,10 @@ class FrameEngine:
         home_colour = elements.get("home_score", {}).get("colour", "000000")
 
         # TEAM COLOURS
-        draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}CC")  # x-42
+        draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}BF")  # x-42
         draw.polygon(
             [(1200, 934), (1528, 934), (1607, 1013), (1200, 1013)],
-            fill=f"#{home_colour}CC",
+            fill=f"#{home_colour}BF",
         )
 
         draw.text(
@@ -186,7 +239,7 @@ class FrameEngine:
             draw.polygon(points, fill="white")
 
         draw.text(
-            (1757, 837),
+            (1755, 837),
             str(elements.get("outs", {}).get("text", "0 OUT")),
             fill="white",
             font=self.font_small,
@@ -237,7 +290,7 @@ class FrameEngine:
             alpha = 255
 
         draw.text(
-            (846, 1031),
+            (835, 1031),
             status_text,
             fill=(255, 255, 255, alpha),
             font=self.font_status,
@@ -435,12 +488,61 @@ class FrameEngine:
             return self.render_lineup_sheet(now_ns)
         return self.render_blank(now_ns)
 
+    def _report_srt_health(self, force: bool = False) -> None:
+        now_ns = time.perf_counter_ns()
+
+        if not force and now_ns - self.last_srt_report_ns < self.srt_report_interval_ns:
+            return
+
+        self.last_srt_report_ns = now_ns
+
+        process = self.ffmpeg
+
+        if process is not None and process.poll() is None:
+            report_srt_state(
+                live=True,
+                status="live",
+                message="SRT output running",
+                pid=process.pid,
+            )
+        else:
+            report_srt_state(
+                live=False,
+                status="offline",
+                message="SRT output stopped",
+                pid=None,
+            )
+
     def _ensure_ffmpeg(self) -> None:
         if not self.config.ffmpeg_command or self.ffmpeg is not None:
             return
-        self.ffmpeg = subprocess.Popen(
-            self.config.ffmpeg_command, stdin=subprocess.PIPE
-        )
+        try:
+            self.ffmpeg = subprocess.Popen(
+                self.config.ffmpeg_command,
+                stdin=subprocess.PIPE,
+                # stderr=subprocess.DEVNULL,
+            )
+
+            time.sleep(0.1)
+
+            if self.ffmpeg.poll() is not None:
+                raise RuntimeError(f"FFmpeg exited with code {self.ffmpeg.returncode}")
+
+            report_srt_state(
+                live=True,
+                status="live",
+                message="SRT output started",
+                pid=self.ffmpeg.pid,
+            )
+
+        except Exception as exc:
+            self.ffmpeg = None
+
+            report_srt_state(
+                live=False,
+                status="error",
+                message=f"Unable to START SRT: {exc}",
+            )
 
     def _write_outputs(self, image: Image.Image) -> tuple[int, int, int]:
         convert_start_ns = time.perf_counter_ns()
@@ -473,8 +575,8 @@ class FrameEngine:
         if self.config.ffmpeg_command:
             try:
                 self._ensure_ffmpeg()
-                assert self.ffmpeg is not None and self.ffmpeg.stdin is not None
-                self.ffmpeg.stdin.write(raw)
+                if self.ffmpeg is not None and self.ffmpeg.stdin is not None:
+                    self.ffmpeg.stdin.write(raw)
             except (BrokenPipeError, OSError) as exc:
                 print(f"FFmpeg output failed: {exc}")
                 self._close_ffmpeg()
@@ -493,11 +595,17 @@ class FrameEngine:
         try:
             if self.ffmpeg.stdin:
                 self.ffmpeg.stdin.close()
-            # self.ffmpeg.wait(timeout=2)
+                self.ffmpeg.wait(timeout=2)
         except (OSError, subprocess.TimeoutExpired):
             self.ffmpeg.terminate()
         finally:
             self.ffmpeg = None
+
+        report_srt_state(
+            live=False,
+            status="offline",
+            message="SRT output stopped",
+        )
 
     def run(self) -> None:
         interval_ns = 1_000_000_000 // self.config.fps
@@ -506,7 +614,7 @@ class FrameEngine:
         try:
             while not self.stop_event.is_set():
                 self._consume_updates()
-
+                self._report_srt_health()
                 now_ns = time.perf_counter_ns()
 
                 if now_ns >= next_frame_ns:

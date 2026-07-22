@@ -289,6 +289,58 @@ def send_latest(updates: mp.Queue, message: dict[str, Any]) -> None:
         pass
 
 
+def build_stream_state(game: dict[str, Any]) -> dict[str, Any]:
+    srt = game.get("srt", {})
+    live = bool(srt.get("live_requested", False))
+    url = str(srt.get("url", "")).strip()
+
+    return {
+        "live": live and bool(url),
+        "ffmpeg_command": build_srt_command(srt) if live and url else None,
+    }
+
+
+def build_srt_command(srt: dict[str, Any]) -> list[str]:
+    width = int(srt.get("width", 1920))
+    height = int(srt.get("height", 1080))
+    fps = int(srt.get("fps", 25))
+    bitrate = str(srt.get("bitrate", "4M"))
+    url = str(srt.get("url", "")).strip()
+
+    return [
+        "ffmpeg",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgra",
+        "-video_size",
+        f"{width}x{height}",
+        "-framerate",
+        str(fps),
+        "-i",
+        "pipe:0",
+        "-stream_loop",
+        "-1",
+        "-i",
+        "sonican-blues-rock-victory-inspirational-loop-465097.mp3",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-b:v",
+        bitrate,
+        "-maxrate",
+        bitrate,
+        "-bufsize",
+        "8M",
+        "-c:a",
+        "aac",
+        "-f",
+        "mpegts",
+        url,
+    ]
+
+
 def main() -> None:
     updates: mp.Queue = mp.Queue(maxsize=1)
     stop_event = mp.Event()
@@ -300,33 +352,7 @@ def main() -> None:
             stop_event,
             {
                 "fps": FPS,
-                "ffmpeg_command": [
-                    "ffmpeg",
-                    "-f",
-                    "rawvideo",
-                    "-pix_fmt",
-                    "bgra",
-                    "-video_size",
-                    "1920x1080",
-                    "-framerate",
-                    "25",
-                    "-i",
-                    "pipe:0",
-                    "-stream_loop",
-                    "-1",
-                    "-i",
-                    "sonican-blues-rock-victory-inspirational-loop-465097.mp3",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "ultrafast",
-                    "-c:a",
-                    "aac",
-                    "-f",
-                    "mpegts",
-                    # "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
-                    "srt://13.60.22.249:8890?mode=caller&streamid=publish:scorebug",
-                ],
+                "ffmpeg_command": None,
             },
         ),
         name="frame-engine",
@@ -341,10 +367,22 @@ def main() -> None:
     try:
         while True:
             new_game, last_game_mtime = load_game_if_changed(last_game_mtime)
+
             if new_game is not None:
+                previous_game_id = game.get("id") if game else None
                 game = new_game
-                last_play = 1
-                status_timer = STATUS_TIMEOUT
+
+                if game.get("id") != previous_game_id:
+                    last_play = 1
+                    status_timer = STATUS_TIMEOUT
+
+                send_latest(
+                    updates,
+                    {
+                        "command": "stream",
+                        "stream": build_stream_state(game),
+                    },
+                )
 
             if game is None:
                 time.sleep(POLL_INTERVAL)
@@ -389,6 +427,7 @@ def main() -> None:
                             "command": "update",
                             "scene": "lineup",
                             "state": state,
+                            "stream": build_stream_state(game),
                         }
                     else:
                         state = {
@@ -401,6 +440,7 @@ def main() -> None:
                             "command": "update",
                             "scene": "scorebug",
                             "state": state,
+                            "stream": build_stream_state(game),
                         }
 
                     send_latest(updates, message)
