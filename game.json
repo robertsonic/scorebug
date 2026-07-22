@@ -1,11 +1,11 @@
 {
-	"id": 202997,
-	"competition": "bbf_div_1",
+	"id": 191179,
+	"competition": "bbf_div_5",
 	"home": {
-		"colour": "FF00DD"
+		"colour": "FF0000"
 	},
 	"away": {
-		"colour": "FF4FFF"
+		"colour": "FF8800"
 	},
-	"play_lock": 202
+	"play_lock": -1
 }

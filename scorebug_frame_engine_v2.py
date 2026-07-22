@@ -44,7 +44,9 @@ class FrameEngine:
         self.template = self._load_template(config.template_file)
         self.font_large = self._load_font("Gotham-Bold.otf", 72)
         self.font_medium = self._load_font("Gotham-Book.otf", 42)
-        self.font_small = self._load_font("Gotham-Bold.otf", 16)
+        self.font_small = self._load_font("Gotham-Bold.otf", 17)
+        self.font_smaller = self._load_font("Gotham-Bold.otf", 16)
+        self.font_status = self._load_font("source-code-pro.bold.ttf", 16)
         self.lineup_medium = self._load_font("Gotham-Book.otf", 56)
         self.lineup_small = self._load_font("Gotham-Book.otf", 24)
 
@@ -67,7 +69,7 @@ class FrameEngine:
         self.competition_logo_name: str | None = None
         self.competition_logo: Image.Image | None = None
 
-        self.debug: bool = False
+        self.debug: bool = True
         self.debug_frame_count = 0
         self.debug_window_start_ns = time.perf_counter_ns()
 
@@ -126,14 +128,15 @@ class FrameEngine:
         away_colour = elements.get("away_score", {}).get("colour", "FFFFFF")
         home_colour = elements.get("home_score", {}).get("colour", "000000")
 
-        draw.rectangle((852, 932, 1242, 1017), fill=f"#{away_colour}CC")
+        # TEAM COLOURS
+        draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}CC")  # x-42
         draw.polygon(
-            [(1242, 932), (1570, 932), (1655, 1017), (1242, 1017)],
+            [(1200, 934), (1528, 934), (1607, 1013), (1200, 1013)],
             fill=f"#{home_colour}CC",
         )
 
         draw.text(
-            (867, 950),
+            (828, 950),
             str(elements.get("away_name", {}).get("text", "AWAY")),
             fill="white",
             font=self.font_large,
@@ -142,7 +145,7 @@ class FrameEngine:
             stroke_width=1,
         )
         draw.text(
-            (1177, 950),
+            (1138, 950),
             str(elements.get("away_score", {}).get("text", "0")),
             fill="white",
             font=self.font_large,
@@ -151,7 +154,7 @@ class FrameEngine:
             stroke_width=1,
         )
         draw.text(
-            (1260, 950),
+            (1218, 950),
             str(elements.get("home_name", {}).get("text", "HOME")),
             fill="white",
             font=self.font_large,
@@ -160,7 +163,7 @@ class FrameEngine:
             stroke_width=1,
         )
         draw.text(
-            (1570, 950),
+            (1528, 950),
             str(elements.get("home_score", {}).get("text", "0")),
             fill="white",
             font=self.font_large,
@@ -171,7 +174,7 @@ class FrameEngine:
 
         inning = elements.get("inning", {})
         draw.text(
-            (1790, 885),
+            (1770, 885),
             str(inning.get("text", "PRE")),
             fill="white",
             font=self.font_medium,
@@ -183,7 +186,7 @@ class FrameEngine:
             draw.polygon(points, fill="white")
 
         draw.text(
-            (1787, 845),
+            (1757, 837),
             str(elements.get("outs", {}).get("text", "0 OUT")),
             fill="white",
             font=self.font_small,
@@ -191,7 +194,7 @@ class FrameEngine:
             align="center",
         )
         draw.text(
-            (1800, 1000),
+            (1780, 1000),
             str(elements.get("count", {}).get("text", "0-0")),
             fill="white",
             font=self.font_medium,
@@ -199,14 +202,14 @@ class FrameEngine:
             align="center",
         )
         draw.text(
-            (890, 1030),
+            (835, 909),
             str(elements.get("away_player", {}).get("text", "")),
             fill="white",
             font=self.font_small,
             anchor="lm",
         )
         draw.text(
-            (1280, 1030),
+            (1230, 909),
             str(elements.get("home_player", {}).get("text", "")),
             fill="white",
             font=self.font_small,
@@ -219,8 +222,9 @@ class FrameEngine:
         # Example frame-driven fade. The main process only supplies text and timing.
         status = elements.get("status", {})
         status_text = str(status.get("text", ""))
+
         status_started_ns = int(status.get("started_ns", self.state_changed_ns))
-        hold_ns = int(status.get("hold_ns", 6_000_000_000))
+        hold_ns = int(status.get("hold_ns", 5_000_000_000))
         fade_ns = max(1, int(status.get("fade_ns", 1_000_000_000)))
         age_ns = max(0, now_ns - status_started_ns)
         if age_ns <= hold_ns:
@@ -228,14 +232,17 @@ class FrameEngine:
         else:
             alpha = max(0, round(255 * (1 - ((age_ns - hold_ns) / fade_ns))))
 
-        if status_text and alpha > 0:
-            draw.text(
-                (1280, 730),
-                status_text,
-                fill=(255, 255, 255, alpha),
-                font=self.font_small,
-                anchor="lm",
-            )
+        if alpha <= 0 and age_ns >= (fade_ns + hold_ns + fade_ns):
+            status_text = str(status.get("fixed_text", ""))
+            alpha = 255
+
+        draw.text(
+            (846, 1031),
+            status_text,
+            fill=(255, 255, 255, alpha),
+            font=self.font_status,
+            anchor="lm",
+        )
 
         image = Image.alpha_composite(self.template, overlay)
         self._draw_common_overlays(image)

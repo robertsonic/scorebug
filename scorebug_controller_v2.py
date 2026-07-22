@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 import multiprocessing as mp
 import os
 import queue
+import random
 import time
 from typing import Any
 
@@ -16,6 +18,13 @@ STATUS_TIMEOUT = 120
 FPS = 25
 INNINGS = ["PRE", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]
 
+STATUS_MSGS = [
+    "richmondbaseball.co.uk",
+    "Please Donate @ richmondbaseball.co.uk/projects",
+    "Youth Programme: richmondbaseball.co.uk/youth",
+]
+
+status_msg_index = math.floor(random.random() * len(STATUS_MSGS))
 
 def get_latest_play(game_id: str | int) -> int:
     response = requests.get(
@@ -94,6 +103,7 @@ def batter_line(batter: dict[str, Any]) -> str:
 def calculate_elements(
     payload: dict[str, Any], home_colour: str, away_colour: str
 ) -> dict[str, Any]:
+
     situation = payload.get("situation", {})
     linescore = payload.get("linescore", {})
     away_totals = linescore.get("awaytotals", {})
@@ -101,6 +111,8 @@ def calculate_elements(
 
     inning_value = str(situation.get("inning", "0.0"))
     inning_number, _, half = inning_value.partition(".")
+
+    statuses = STATUS_MSGS.copy()
 
     batter: dict[str, Any] = {}
     pitcher: dict[str, Any] = {}
@@ -122,26 +134,35 @@ def calculate_elements(
     )
     bases = []
     if occupied(situation.get("runner1")):
-        bases.append(calculate_base(1714, 932))
+        bases.append(calculate_base(1670, 932))
     if occupied(situation.get("runner2")):
-        bases.append(calculate_base(1673, 890))
+        bases.append(calculate_base(1629, 890))
     if occupied(situation.get("runner3")):
-        bases.append(calculate_base(1632, 931))
+        bases.append(calculate_base(1588, 932))
 
     platecount = payload.get("platecount") or []
     status_text = ""
+
     if platecount:
         status_text = " ".join(str(platecount[0].get("label", "")).split("<br>"))
 
     batter_text = (
         f"{batter.get('order', '')}: {str(batter.get('POS', '')).split('/')[-1]} - "
         f"{batter.get('lastname', '')} - ({batter.get('H', 0)}-{batter.get('AB', 0)}) "
-        f"{batter_line(batter)}"
     ).strip()
+
+    b_line = batter_line(batter).strip()
+
+    if b_line:
+        statuses.extend([f"Previous At Bats: {b_line}"] * 6)
+
     pitcher_text = (
         f"P: {pitcher.get('lastname', '')} - {pitcher.get('PITCHIP', '')} "
         f"({pitcher_balls}-{pitcher.get('STRIKES', 0)})"
     ).strip()
+
+    if len(status_text) > 70:
+        status_text = status_text[: 70 - 3].rstrip() + "..."
 
     elements: dict[str, Any] = {
         "away_score": {"text": away_totals.get("R", 0), "colour": away_colour},
@@ -157,19 +178,20 @@ def calculate_elements(
         "status": {
             "text": status_text,
             "started_ns": time.perf_counter_ns(),
-            "hold_ns": 3_000_000_000,
+            "hold_ns": 5_000_000_000,
             "fade_ns": 1_000_000_000,
+            "fixed_text": random.choice(statuses),
         },
     }
 
     if half == "0":
         elements["away_player"]["text"] = batter_text
         elements["home_player"]["text"] = pitcher_text
-        elements["inning"]["points"] = calculate_up_arrow(1760, 885)
+        elements["inning"]["points"] = calculate_up_arrow(1740, 885)
     else:
         elements["home_player"]["text"] = batter_text
         elements["away_player"]["text"] = pitcher_text
-        elements["inning"]["points"] = calculate_down_arrow(1760, 887)
+        elements["inning"]["points"] = calculate_down_arrow(1740, 887)
 
     return elements
 
@@ -302,7 +324,8 @@ def main() -> None:
                     "aac",
                     "-f",
                     "mpegts",
-                    "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
+                    # "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
+                    "srt://13.60.22.249:8890?mode=caller&streamid=publish:scorebug",
                 ],
             },
         ),
@@ -320,7 +343,7 @@ def main() -> None:
             new_game, last_game_mtime = load_game_if_changed(last_game_mtime)
             if new_game is not None:
                 game = new_game
-                last_play = 0
+                last_play = 1
                 status_timer = STATUS_TIMEOUT
 
             if game is None:
@@ -335,9 +358,28 @@ def main() -> None:
             play_lock = int(game.get("play_lock", 0) or 0)
 
             try:
-                latest_play = get_latest_play(game_id) if play_lock < 1 else play_lock
+                latest_play = 1
+                if play_lock < 0:
+                    if random.random() < 1 / 3:
+                        latest_play = (last_play + 1) if last_play > 1 else 2
+                    else:
+                        latest_play = last_play
+                elif play_lock < 1:
+                    latest_play = get_latest_play(game_id)
+
                 if latest_play > last_play or status_timer >= STATUS_TIMEOUT:
-                    payload = get_play(game_id, latest_play)
+                    try:
+                        payload = get_play(game_id, latest_play)
+                    except requests.exceptions.HTTPError as e:
+                        error_code = (
+                            e.response.status_code if e.response is not None else 500
+                        )
+
+                        if error_code == 404:
+                            last_play += 1
+                        else:
+                            raise
+
                     common = {"competition": game.get("competition")}
 
                     if latest_play == 1:
