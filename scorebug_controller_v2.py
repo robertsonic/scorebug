@@ -100,9 +100,7 @@ def batter_line(batter: dict[str, Any]) -> str:
     return ", ".join(result)
 
 
-def calculate_elements(
-    payload: dict[str, Any], home_colour: str, away_colour: str
-) -> dict[str, Any]:
+def calculate_elements(payload: dict[str, Any]) -> dict[str, Any]:
 
     situation = payload.get("situation", {})
     linescore = payload.get("linescore", {})
@@ -165,8 +163,8 @@ def calculate_elements(
         status_text = status_text[: 70 - 3].rstrip() + "..."
 
     elements: dict[str, Any] = {
-        "away_score": {"text": away_totals.get("R", 0), "colour": away_colour},
-        "home_score": {"text": home_totals.get("R", 0), "colour": home_colour},
+        "away_score": {"text": away_totals.get("R", 0)},
+        "home_score": {"text": home_totals.get("R", 0)},
         "away_name": {"text": payload.get("eventaway", "AWAY")},
         "home_name": {"text": payload.get("eventhome", "HOME")},
         "inning": {"text": get_inning(inning_number)},
@@ -196,9 +194,7 @@ def calculate_elements(
     return elements
 
 
-def build_lineup_state(
-    payload: dict[str, Any], home_colour: str, away_colour: str
-) -> dict[str, Any]:
+def build_lineup_state(payload: dict[str, Any]) -> dict[str, Any]:
     lineups: dict[str, list[dict[str, Any]]] = {"away": [], "home": []}
     seen: set[tuple[str, int]] = set()
 
@@ -255,8 +251,6 @@ def build_lineup_state(
     return {
         "away_name": payload.get("eventaway", "AWAY"),
         "home_name": payload.get("eventhome", "HOME"),
-        "away_colour": away_colour,
-        "home_colour": home_colour,
         "away_lineup": lineups["away"],
         "home_lineup": lineups["home"],
     }
@@ -396,16 +390,22 @@ def main() -> None:
             play_lock = int(game.get("play_lock", 0) or 0)
 
             try:
-                latest_play = 1
+                latest_play = last_play
                 if play_lock < 0:
-                    if random.random() < 1 / 3:
+                    randy = random.random()
+                    print(randy)
+                    if randy < ((1 / 3) if latest_play > 1 else (1 / 10)):
                         latest_play = (last_play + 1) if last_play > 1 else 2
                     else:
                         latest_play = last_play
                 elif play_lock < 1:
                     latest_play = get_latest_play(game_id)
 
-                if latest_play > last_play or status_timer >= STATUS_TIMEOUT:
+                if (
+                    latest_play > last_play
+                    or status_timer >= STATUS_TIMEOUT
+                    or new_game is not None
+                ):
                     try:
                         payload = get_play(game_id, latest_play)
                     except requests.exceptions.HTTPError as e:
@@ -418,10 +418,14 @@ def main() -> None:
                         else:
                             raise
 
-                    common = {"competition": game.get("competition")}
+                    common = {
+                        "competition": game.get("competition"),
+                        "home_colour": home_colour,
+                        "away_colour": away_colour,
+                    }
 
                     if latest_play == 1:
-                        state = build_lineup_state(payload, home_colour, away_colour)
+                        state = {**build_lineup_state(payload), **common}
                         state.update(common)
                         message = {
                             "command": "update",
@@ -431,9 +435,7 @@ def main() -> None:
                         }
                     else:
                         state = {
-                            "elements": calculate_elements(
-                                payload, home_colour, away_colour
-                            ),
+                            "elements": calculate_elements(payload),
                             **common,
                         }
                         message = {
@@ -443,8 +445,14 @@ def main() -> None:
                             "stream": build_stream_state(game),
                         }
 
+                    message["reload_assets"] = (new_game is not None) or (
+                        last_play == 1 and last_play != latest_play
+                    )
+
                     send_latest(updates, message)
                     print(f"Sent graphic state for play {latest_play}")
+
+                    new_game = None
                     last_play = latest_play
                     status_timer = 0
             except (requests.RequestException, KeyError, ValueError, TypeError) as exc:

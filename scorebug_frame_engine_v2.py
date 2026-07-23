@@ -15,13 +15,13 @@ from zoneinfo import ZoneInfo
 import threading
 import requests
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageChops
 
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 25
 FB = "/dev/fb0"
-TEMPLATE_FILE = "templatev3.png"
+TEMPLATE_FILE = "templatev4.jpeg"
 MAGENTA = "#FF00FF"
 
 
@@ -69,7 +69,7 @@ class FrameEngine:
         self.stop_event = stop_event
         self.config = config
 
-        self.template = self._load_template(config.template_file)
+        self.template = None  # self._load_template(config.template_file)
         self.font_large = self._load_font("Gotham-Bold.otf", 72)
         self.font_medium = self._load_font("Gotham-Book.otf", 42)
         self.font_small = self._load_font("Gotham-Bold.otf", 17)
@@ -95,6 +95,8 @@ class FrameEngine:
         self.ffmpeg_writer_stop = threading.Event()
         self.ffmpeg_writer_thread: threading.Thread | None = None
 
+        self.lineup_render: Image.Image | None = None
+
         self.competition_logo_name: str | None = None
         self.competition_logo: Image.Image | None = None
 
@@ -119,7 +121,45 @@ class FrameEngine:
             image = Image.open(path).convert("RGBA")
             if image.size != (self.config.width, self.config.height):
                 image = image.resize((self.config.width, self.config.height))
-            return image
+
+            competition = self.state.get("competition")
+
+            if competition:
+                if competition != self.competition_logo_name:
+                    self.competition_logo_name = competition
+                    self.competition_logo = None
+
+                    logo_path = Path("images") / f"{competition}.png"
+
+                    try:
+                        with Image.open(logo_path) as source:
+                            logo = source.convert("RGBA")
+
+                        logo.thumbnail((120, 120))
+                        self.competition_logo = logo
+
+                    except OSError:
+                        self.competition_logo = None
+
+                if self.competition_logo is not None:
+                    image.alpha_composite(self.competition_logo, (15, 25))
+
+            else:
+                self.competition_logo_name = None
+                self.competition_logo = None
+
+            away_colour = self.state.get("away_colour", "FFFFFF")
+            home_colour = self.state.get("home_colour", "000000")
+
+            team_colours = Image.new("RGBA", image.size, (255, 255, 255, 255))
+            draw = ImageDraw.Draw(team_colours)
+            draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}")
+            draw.polygon(
+                [(1200, 934), (1528, 934), (1607, 1013), (1200, 1013)],
+                fill=f"#{home_colour}",
+            )
+
+            return ImageChops.multiply(image, team_colours)
         except OSError:
             return Image.new(
                 "RGBA", (self.config.width, self.config.height), (0, 0, 0, 0)
@@ -163,8 +203,9 @@ class FrameEngine:
             self.scene = latest.get("scene", "scorebug")
             self.state = copy.deepcopy(latest.get("state", {}))
 
-        elif command == "reload_assets":
-            self.template = self._load_template(self.config.template_file)
+            if latest.get("reload_assets", False):
+                print("Reloading Assets")
+                self.template = self._load_template(self.config.template_file)
 
         elif command == "stream":
             # The stream section above has already been handled.
@@ -176,18 +217,8 @@ class FrameEngine:
         """Build one complete scorebug frame from the current semantic state."""
         elements = self.state.get("elements", {})
         overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+
         draw = ImageDraw.Draw(overlay)
-
-        away_colour = elements.get("away_score", {}).get("colour", "FFFFFF")
-        home_colour = elements.get("home_score", {}).get("colour", "000000")
-
-        # TEAM COLOURS
-        draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}BF")  # x-42
-        draw.polygon(
-            [(1200, 934), (1528, 934), (1607, 1013), (1200, 1013)],
-            fill=f"#{home_colour}BF",
-        )
-
         draw.text(
             (828, 950),
             str(elements.get("away_name", {}).get("text", "AWAY")),
@@ -302,6 +333,10 @@ class FrameEngine:
         return image
 
     def render_lineup_sheet(self, now_ns: int) -> Image.Image:
+
+        if self.lineup_render is not None:
+            return self.lineup_render
+
         state = self.state
         image = Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
         draw = ImageDraw.Draw(image)
@@ -357,6 +392,9 @@ class FrameEngine:
         self._draw_lineup_rows(draw, away, 280, 290, 340, 420, away_colour)
         self._draw_lineup_rows(draw, home, 970, 980, 1030, 1100, home_colour)
         self._draw_common_overlays(image)
+
+        self.lineup_render = image
+
         return image
 
     def _draw_lineup_rows(
@@ -434,31 +472,6 @@ class FrameEngine:
         return Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
 
     def _draw_common_overlays(self, image: Image.Image) -> None:
-        competition = self.state.get("competition")
-
-        if competition:
-            if competition != self.competition_logo_name:
-                self.competition_logo_name = competition
-                self.competition_logo = None
-
-                logo_path = Path("images") / f"{competition}.png"
-
-                try:
-                    with Image.open(logo_path) as source:
-                        logo = source.convert("RGBA")
-
-                    logo.thumbnail((120, 120))
-                    self.competition_logo = logo
-
-                except OSError:
-                    self.competition_logo = None
-
-            if self.competition_logo is not None:
-                image.alpha_composite(self.competition_logo, (15, 25))
-
-        else:
-            self.competition_logo_name = None
-            self.competition_logo = None
 
         draw = ImageDraw.Draw(image)
 
