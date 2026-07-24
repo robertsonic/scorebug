@@ -227,13 +227,13 @@ class FrameEngine:
         t5 = 0
         t6 = 0
 
+        overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        t1 = time.perf_counter_ns()
+
         if self.static_render is None or self.state_changed_ns > self.prev_state_change:
             self.prev_state_change = self.state_changed_ns
 
-            overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
-
-            t1 = time.perf_counter_ns()
-            draw = ImageDraw.Draw(overlay)
             draw.text(
                 (828, 950),
                 str(elements.get("away_name", {}).get("text", "AWAY")),
@@ -322,8 +322,8 @@ class FrameEngine:
             self.static_render = Image.alpha_composite(self.template, overlay)
 
         t3 = time.perf_counter_ns()
-        status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
-        status_draw = ImageDraw.Draw(status_overlay)
+        #status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        #status_draw = ImageDraw.Draw(status_overlay)
 
         # Example frame-driven fade. The main process only supplies text and timing.
         status = elements.get("status", {})
@@ -342,7 +342,7 @@ class FrameEngine:
             status_text = str(status.get("fixed_text", ""))
             alpha = 255
 
-        status_draw.text(
+        draw.text(
             (835, 1031),
             status_text,
             fill=(255, 255, 255, alpha),
@@ -351,9 +351,9 @@ class FrameEngine:
         )
 
         t4 = time.perf_counter_ns()
-        self._draw_common_overlays(status_overlay)
+        self._draw_common_overlays(overlay)
         t5 = time.perf_counter_ns()
-        image = Image.alpha_composite(self.static_render, status_overlay)
+        #image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
 
         if self.debug:
@@ -366,7 +366,7 @@ class FrameEngine:
                 f"final_composite={(t6-t5)/1e6:.1f} "
             )
 
-        return image
+        return overlay
 
     def render_lineup_sheet(self, now_ns: int) -> Image.Image:
 
