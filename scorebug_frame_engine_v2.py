@@ -379,7 +379,11 @@ class FrameEngine:
     def render_lineup_sheet(self, now_ns: int) -> Image.Image:
 
         state = self.state
-        image = Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
+        image = (
+            Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
+            if self.lineup_render is None
+            else self.static_render.copy()
+        )
         draw = ImageDraw.Draw(image)
 
         if self.lineup_render is None:
