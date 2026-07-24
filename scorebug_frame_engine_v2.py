@@ -378,66 +378,65 @@ class FrameEngine:
 
     def render_lineup_sheet(self, now_ns: int) -> Image.Image:
 
-        if self.lineup_render is not None:
-            return self.lineup_render
-
         state = self.state
         image = Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
         draw = ImageDraw.Draw(image)
 
-        away_colour = state.get("away_colour", "FFFFFF")
-        home_colour = state.get("home_colour", "000000")
-        away = state.get("away_lineup", [])
-        home = state.get("home_lineup", [])
+        if self.lineup_render is None:
 
-        draw.rounded_rectangle(
-            (270, 180, 1650, 950), radius=25, fill="#111", outline="#FFF", width=2
-        )
-        draw.rectangle((272, 200, 960, 260), fill=f"#{away_colour}")
-        draw.rectangle((960, 200, 1648, 260), fill=f"#{home_colour}")
-        draw.text(
-            (605, 230),
-            state.get("away_name", "AWAY"),
-            fill="white",
-            font=self.lineup_medium,
-            anchor="mm",
-            stroke_fill="#000",
-            stroke_width=1,
-        )
-        draw.text(
-            (1340, 230),
-            state.get("home_name", "HOME"),
-            fill="white",
-            font=self.lineup_medium,
-            anchor="mm",
-            stroke_fill="#000",
-            stroke_width=1,
-        )
+            away_colour = state.get("away_colour", "FFFFFF")
+            home_colour = state.get("home_colour", "000000")
+            away = state.get("away_lineup", [])
+            home = state.get("home_lineup", [])
 
-        for x in (290, 980):
+            draw.rounded_rectangle(
+                (270, 180, 1650, 950), radius=25, fill="#111", outline="#FFF", width=2
+            )
+            draw.rectangle((272, 200, 960, 260), fill=f"#{away_colour}")
+            draw.rectangle((960, 200, 1648, 260), fill=f"#{home_colour}")
             draw.text(
-                (x, 285), "#", fill="#CCCCCC", font=self.lineup_small, anchor="lm"
+                (605, 230),
+                state.get("away_name", "AWAY"),
+                fill="white",
+                font=self.lineup_medium,
+                anchor="mm",
+                stroke_fill="#000",
+                stroke_width=1,
             )
             draw.text(
-                (x + 50, 285),
-                "POS",
-                fill="#CCCCCC",
-                font=self.lineup_small,
-                anchor="lm",
-            )
-            draw.text(
-                (x + 130, 285),
-                "PLAYER",
-                fill="#CCCCCC",
-                font=self.lineup_small,
-                anchor="lm",
+                (1340, 230),
+                state.get("home_name", "HOME"),
+                fill="white",
+                font=self.lineup_medium,
+                anchor="mm",
+                stroke_fill="#000",
+                stroke_width=1,
             )
 
-        self._draw_lineup_rows(draw, away, 280, 290, 340, 420, away_colour)
-        self._draw_lineup_rows(draw, home, 970, 980, 1030, 1100, home_colour)
+            for x in (290, 980):
+                draw.text(
+                    (x, 285), "#", fill="#CCCCCC", font=self.lineup_small, anchor="lm"
+                )
+                draw.text(
+                    (x + 50, 285),
+                    "POS",
+                    fill="#CCCCCC",
+                    font=self.lineup_small,
+                    anchor="lm",
+                )
+                draw.text(
+                    (x + 130, 285),
+                    "PLAYER",
+                    fill="#CCCCCC",
+                    font=self.lineup_small,
+                    anchor="lm",
+                )
+
+            self._draw_lineup_rows(draw, away, 280, 290, 340, 420, away_colour)
+            self._draw_lineup_rows(draw, home, 970, 980, 1030, 1100, home_colour)
+            self.lineup_render = image
+
         self._draw_common_overlays(image)
-
-        self.lineup_render = image
 
         return image
 
