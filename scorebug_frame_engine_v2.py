@@ -227,7 +227,11 @@ class FrameEngine:
         t5 = 0
         t6 = 0
 
-        overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        overlay = (
+            Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+            if self.static_render is None
+            else self.static_render.copy()
+        )
         draw = ImageDraw.Draw(overlay)
         t1 = time.perf_counter_ns()
 
@@ -322,8 +326,8 @@ class FrameEngine:
             self.static_render = Image.alpha_composite(self.template, overlay)
 
         t3 = time.perf_counter_ns()
-        #status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
-        #status_draw = ImageDraw.Draw(status_overlay)
+        # status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        # status_draw = ImageDraw.Draw(status_overlay)
 
         # Example frame-driven fade. The main process only supplies text and timing.
         status = elements.get("status", {})
@@ -353,7 +357,7 @@ class FrameEngine:
         t4 = time.perf_counter_ns()
         self._draw_common_overlays(overlay)
         t5 = time.perf_counter_ns()
-        #image = Image.alpha_composite(self.static_render, status_overlay)
+        # image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
 
         if self.debug:
