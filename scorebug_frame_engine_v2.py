@@ -219,7 +219,7 @@ class FrameEngine:
 
         elements = self.state.get("elements", {})
 
-        t0 = 0
+        t0 = time.perf_counter_ns()
         t1 = 0
         t2 = 0
         t3 = 0
@@ -229,7 +229,7 @@ class FrameEngine:
 
         if self.static_render is None or self.state_changed_ns > self.prev_state_change:
             self.prev_state_change = self.state_changed_ns
-            t0 = time.perf_counter_ns()
+
             overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
 
             t1 = time.perf_counter_ns()
@@ -351,7 +351,7 @@ class FrameEngine:
         )
 
         t4 = time.perf_counter_ns()
-        self._draw_common_overlays(self.static_render)
+        self._draw_common_overlays(status_overlay)
         t5 = time.perf_counter_ns()
         image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
@@ -360,10 +360,10 @@ class FrameEngine:
             print(
                 f"overlay={(t1-t0)/1e6:.1f} "
                 f"draw={(t2-t1)/1e6:.1f} "
-                f"static_render={(t3-(t2 if t2 > 0 else t3))/1e6:.1f} "
-                f"alpha={(t4-t3)/1e6:.1f}"
-                f"clock={(t5-t4)/1e6:.1f}"
-                f"final_composite={(t6-t5)/1e6:.1f}"
+                f"static_render={(t3-(t2 if t2 > 0 else t0))/1e6:.1f} "
+                f"alpha={(t4-t3)/1e6:.1f} "
+                f"clock={(t5-t4)/1e6:.1f} "
+                f"final_composite={(t6-t5)/1e6:.1f} "
             )
 
         return image
