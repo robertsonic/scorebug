@@ -215,8 +215,11 @@ class FrameEngine:
     def render_scorebug(self, now_ns: int) -> Image.Image:
         """Build one complete scorebug frame from the current semantic state."""
         elements = self.state.get("elements", {})
+
+        t0 = time.perf_counter_ns()
         overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
 
+        t1 = time.perf_counter_ns()
         draw = ImageDraw.Draw(overlay)
         draw.text(
             (828, 950),
@@ -327,8 +330,22 @@ class FrameEngine:
             anchor="lm",
         )
 
+        t2 = time.perf_counter_ns()
         image = Image.alpha_composite(self.template, overlay)
+
+        t3 = time.perf_counter_ns()
         self._draw_common_overlays(image)
+
+        t4 = time.perf_counter_ns()
+
+        if self.debug:
+            print(
+                f"overlay={(t1-t0)/1e6:.1f} "
+                f"draw={(t2-t1)/1e6:.1f} "
+                f"composite={(t3-t2)/1e6:.1f} "
+                f"clock={(t4-t3)/1e6:.1f}"
+            )
+
         return image
 
     def render_lineup_sheet(self, now_ns: int) -> Image.Image:
