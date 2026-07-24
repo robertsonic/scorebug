@@ -323,7 +323,7 @@ class FrameEngine:
 
         t3 = time.perf_counter_ns()
         status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
-        status_draw = Image.Draw(status_overlay)
+        status_draw = ImageDraw.Draw(status_overlay)
 
         # Example frame-driven fade. The main process only supplies text and timing.
         status = elements.get("status", {})
