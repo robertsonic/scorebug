@@ -228,7 +228,7 @@ class FrameEngine:
         t6 = 0
 
         overlay = (
-            self.static_render
+            self.static_render.copy()
             if self.static_render is not None
             else Image.new("RGBA", self.template.size, (0, 0, 0, 0))
         )
