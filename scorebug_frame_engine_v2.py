@@ -152,37 +152,14 @@ class FrameEngine:
             home_colour = self.state.get("home_colour", "000000")
 
             team_colours = Image.new("RGBA", image.size, (255, 255, 255, 255))
-            colours_draw = ImageDraw.Draw(team_colours)
-            colours_draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}")
-            colours_draw.polygon(
+            draw = ImageDraw.Draw(team_colours)
+            draw.rectangle((810, 934, 1200, 1013), fill=f"#{away_colour}")
+            draw.polygon(
                 [(1200, 934), (1528, 934), (1607, 1013), (1200, 1013)],
                 fill=f"#{home_colour}",
             )
 
-            coloured = ImageChops.multiply(image, team_colours)
-
-            draw = ImageDraw.Draw(coloured)
-
-            draw.text(
-                (828, 950),
-                str(elements.get("away_name", {}).get("text", "AWAY")),
-                fill="white",
-                font=self.font_large,
-                anchor="lt",
-                stroke_fill="black",
-                stroke_width=1,
-            )
-            draw.text(
-                (1218, 950),
-                str(elements.get("home_name", {}).get("text", "HOME")),
-                fill="white",
-                font=self.font_large,
-                anchor="lt",
-                stroke_fill="black",
-                stroke_width=1,
-            )
-
-            return coloured
+            return ImageChops.multiply(image, team_colours)
         except OSError:
             return Image.new(
                 "RGBA", (self.config.width, self.config.height), (0, 0, 0, 0)
@@ -241,7 +218,15 @@ class FrameEngine:
         overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
 
         draw = ImageDraw.Draw(overlay)
-
+        draw.text(
+            (828, 950),
+            str(elements.get("away_name", {}).get("text", "AWAY")),
+            fill="white",
+            font=self.font_large,
+            anchor="lt",
+            stroke_fill="black",
+            stroke_width=1,
+        )
         draw.text(
             (1138, 950),
             str(elements.get("away_score", {}).get("text", "0")),
@@ -251,7 +236,15 @@ class FrameEngine:
             stroke_fill="black",
             stroke_width=1,
         )
-
+        draw.text(
+            (1218, 950),
+            str(elements.get("home_name", {}).get("text", "HOME")),
+            fill="white",
+            font=self.font_large,
+            anchor="lt",
+            stroke_fill="black",
+            stroke_width=1,
+        )
         draw.text(
             (1528, 950),
             str(elements.get("home_score", {}).get("text", "0")),
