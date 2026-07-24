@@ -321,10 +321,7 @@ class FrameEngine:
             t2 = time.perf_counter_ns()
             self.static_render = Image.alpha_composite(self.template, overlay)
 
-            t3 = time.perf_counter_ns()
-            self._draw_common_overlays(image)
-
-        t4 = time.perf_counter_ns()
+        t3 = time.perf_counter_ns()
         status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
         status_draw = Image.Draw(status_overlay)
 
@@ -353,6 +350,8 @@ class FrameEngine:
             anchor="lm",
         )
 
+        t4 = time.perf_counter_ns()
+        self._draw_common_overlays(image)
         t5 = time.perf_counter_ns()
         image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
@@ -361,9 +360,9 @@ class FrameEngine:
             print(
                 f"overlay={(t1-t0)/1e6:.1f} "
                 f"draw={(t2-t1)/1e6:.1f} "
-                f"composite={(t3-t2)/1e6:.1f} "
-                f"clock={(t4-t3)/1e6:.1f}"
-                f"alpha={(t5-t4)/1e6:.1f}"
+                f"static_render={(t3-t2)/1e6:.1f} "
+                f"alpha={(t4-t3)/1e6:.1f}"
+                f"clock={(t5-t4)/1e6:.1f}"
                 f"final_composite={(t6-t5)/1e6:.1f}"
             )
 
