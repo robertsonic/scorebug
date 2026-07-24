@@ -228,15 +228,19 @@ class FrameEngine:
         t6 = 0
 
         overlay = (
-            Image.new("RGBA", self.template.size, (0, 0, 0, 0))
-            if self.static_render is None
-            else self.static_render.copy()
+            self.static_render
+            if self.static_render is not None
+            else Image.new("RGBA", self.template.size, (0, 0, 0, 0))
         )
+
         draw = ImageDraw.Draw(overlay)
         t1 = time.perf_counter_ns()
 
         if self.static_render is None or self.state_changed_ns > self.prev_state_change:
             self.prev_state_change = self.state_changed_ns
+
+            overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
 
             draw.text(
                 (828, 950),
@@ -355,7 +359,7 @@ class FrameEngine:
         )
 
         t4 = time.perf_counter_ns()
-        self._draw_common_overlays(overlay)
+        # self._draw_common_overlays(overlay)
         t5 = time.perf_counter_ns()
         # image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
