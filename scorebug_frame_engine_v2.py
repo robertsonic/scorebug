@@ -81,6 +81,7 @@ class FrameEngine:
         self.scene = "blank"
         self.state: dict[str, Any] = {}
         self.state_changed_ns = time.perf_counter_ns()
+        self.prev_state_change = self.state_changed_ns
         self.ffmpeg: subprocess.Popen[bytes] | None = None
         self.last_srt_report_ns = 0
         self.srt_report_interval_ns = 5_000_000_000
@@ -96,6 +97,7 @@ class FrameEngine:
         self.ffmpeg_writer_thread: threading.Thread | None = None
 
         self.lineup_render: Image.Image | None = None
+        self.static_render: Image.Image | None = None
 
         self.competition_logo_name: str | None = None
         self.competition_logo: Image.Image | None = None
@@ -214,96 +216,117 @@ class FrameEngine:
 
     def render_scorebug(self, now_ns: int) -> Image.Image:
         """Build one complete scorebug frame from the current semantic state."""
+
         elements = self.state.get("elements", {})
 
-        t0 = time.perf_counter_ns()
-        overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        t0 = 0
+        t1 = 0
+        t2 = 0
+        t3 = 0
+        t4 = 0
+        t5 = 0
+        t6 = 0
 
-        t1 = time.perf_counter_ns()
-        draw = ImageDraw.Draw(overlay)
-        draw.text(
-            (828, 950),
-            str(elements.get("away_name", {}).get("text", "AWAY")),
-            fill="white",
-            font=self.font_large,
-            anchor="lt",
-            stroke_fill="black",
-            stroke_width=1,
-        )
-        draw.text(
-            (1138, 950),
-            str(elements.get("away_score", {}).get("text", "0")),
-            fill="white",
-            font=self.font_large,
-            anchor="rt",
-            stroke_fill="black",
-            stroke_width=1,
-        )
-        draw.text(
-            (1218, 950),
-            str(elements.get("home_name", {}).get("text", "HOME")),
-            fill="white",
-            font=self.font_large,
-            anchor="lt",
-            stroke_fill="black",
-            stroke_width=1,
-        )
-        draw.text(
-            (1528, 950),
-            str(elements.get("home_score", {}).get("text", "0")),
-            fill="white",
-            font=self.font_large,
-            anchor="rt",
-            stroke_fill="black",
-            stroke_width=1,
-        )
+        if self.static_render is None or self.state_changed_ns > self.prev_state_change:
 
-        inning = elements.get("inning", {})
-        draw.text(
-            (1770, 885),
-            str(inning.get("text", "PRE")),
-            fill="white",
-            font=self.font_medium,
-            anchor="lm",
-            align="center",
-        )
-        points = inning.get("points")
-        if points:
-            draw.polygon(points, fill="white")
+            t0 = time.perf_counter_ns()
+            overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
 
-        draw.text(
-            (1755, 837),
-            str(elements.get("outs", {}).get("text", "0 OUT")),
-            fill="white",
-            font=self.font_small,
-            anchor="mb",
-            align="center",
-        )
-        draw.text(
-            (1780, 1000),
-            str(elements.get("count", {}).get("text", "0-0")),
-            fill="white",
-            font=self.font_medium,
-            anchor="mb",
-            align="center",
-        )
-        draw.text(
-            (835, 909),
-            str(elements.get("away_player", {}).get("text", "")),
-            fill="white",
-            font=self.font_small,
-            anchor="lm",
-        )
-        draw.text(
-            (1230, 909),
-            str(elements.get("home_player", {}).get("text", "")),
-            fill="white",
-            font=self.font_small,
-            anchor="lm",
-        )
+            t1 = time.perf_counter_ns()
+            draw = ImageDraw.Draw(overlay)
+            draw.text(
+                (828, 950),
+                str(elements.get("away_name", {}).get("text", "AWAY")),
+                fill="white",
+                font=self.font_large,
+                anchor="lt",
+                stroke_fill="black",
+                stroke_width=1,
+            )
+            draw.text(
+                (1138, 950),
+                str(elements.get("away_score", {}).get("text", "0")),
+                fill="white",
+                font=self.font_large,
+                anchor="rt",
+                stroke_fill="black",
+                stroke_width=1,
+            )
+            draw.text(
+                (1218, 950),
+                str(elements.get("home_name", {}).get("text", "HOME")),
+                fill="white",
+                font=self.font_large,
+                anchor="lt",
+                stroke_fill="black",
+                stroke_width=1,
+            )
+            draw.text(
+                (1528, 950),
+                str(elements.get("home_score", {}).get("text", "0")),
+                fill="white",
+                font=self.font_large,
+                anchor="rt",
+                stroke_fill="black",
+                stroke_width=1,
+            )
 
-        for base in elements.get("bases", {}).get("points", []):
-            draw.polygon(base, fill="yellow")
+            inning = elements.get("inning", {})
+            draw.text(
+                (1770, 885),
+                str(inning.get("text", "PRE")),
+                fill="white",
+                font=self.font_medium,
+                anchor="lm",
+                align="center",
+            )
+            points = inning.get("points")
+            if points:
+                draw.polygon(points, fill="white")
+
+            draw.text(
+                (1755, 837),
+                str(elements.get("outs", {}).get("text", "0 OUT")),
+                fill="white",
+                font=self.font_small,
+                anchor="mb",
+                align="center",
+            )
+            draw.text(
+                (1780, 1000),
+                str(elements.get("count", {}).get("text", "0-0")),
+                fill="white",
+                font=self.font_medium,
+                anchor="mb",
+                align="center",
+            )
+            draw.text(
+                (835, 909),
+                str(elements.get("away_player", {}).get("text", "")),
+                fill="white",
+                font=self.font_small,
+                anchor="lm",
+            )
+            draw.text(
+                (1230, 909),
+                str(elements.get("home_player", {}).get("text", "")),
+                fill="white",
+                font=self.font_small,
+                anchor="lm",
+            )
+
+            for base in elements.get("bases", {}).get("points", []):
+                draw.polygon(base, fill="yellow")
+
+            t2 = time.perf_counter_ns()
+            self.static_render = Image.alpha_composite(self.template, overlay)
+
+            t3 = time.perf_counter_ns()
+            self._draw_common_overlays(image)
+
+        t4 = time.perf_counter_ns()
+        status_overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
+        status_draw = Image.Draw(status_overlay)
 
         # Example frame-driven fade. The main process only supplies text and timing.
         status = elements.get("status", {})
@@ -322,7 +345,7 @@ class FrameEngine:
             status_text = str(status.get("fixed_text", ""))
             alpha = 255
 
-        draw.text(
+        status_draw.text(
             (835, 1031),
             status_text,
             fill=(255, 255, 255, alpha),
@@ -330,13 +353,9 @@ class FrameEngine:
             anchor="lm",
         )
 
-        t2 = time.perf_counter_ns()
-        image = Image.alpha_composite(self.template, overlay)
-
-        t3 = time.perf_counter_ns()
-        self._draw_common_overlays(image)
-
-        t4 = time.perf_counter_ns()
+        t5 = time.perf_counter_ns()
+        image = Image.alpha_composite(self.static_render, status_overlay)
+        t6 = time.perf_counter_ns()
 
         if self.debug:
             print(
@@ -344,6 +363,8 @@ class FrameEngine:
                 f"draw={(t2-t1)/1e6:.1f} "
                 f"composite={(t3-t2)/1e6:.1f} "
                 f"clock={(t4-t3)/1e6:.1f}"
+                f"alpha={(t5-t4)/1e6:.1f}"
+                f"final_composite={(t6-t5)/1e6:.1f}"
             )
 
         return image
