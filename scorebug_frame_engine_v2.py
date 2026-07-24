@@ -360,7 +360,7 @@ class FrameEngine:
             print(
                 f"overlay={(t1-t0)/1e6:.1f} "
                 f"draw={(t2-t1)/1e6:.1f} "
-                f"static_render={(t3-t2)/1e6:.1f} "
+                f"static_render={(t3-(t2 if t2 > 0 else t3))/1e6:.1f} "
                 f"alpha={(t4-t3)/1e6:.1f}"
                 f"clock={(t5-t4)/1e6:.1f}"
                 f"final_composite={(t6-t5)/1e6:.1f}"
