@@ -7,7 +7,7 @@
 	"away": {
 		"colour": "FF8800"
 	},
-	"play_lock": 0,
+	"play_lock": -1,
 	"srt": {
 		"live_requested": false,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",

@@ -228,7 +228,7 @@ class FrameEngine:
         t6 = 0
 
         if self.static_render is None or self.state_changed_ns > self.prev_state_change:
-
+            self.prev_state_change = self.state_changed_ns
             t0 = time.perf_counter_ns()
             overlay = Image.new("RGBA", self.template.size, (0, 0, 0, 0))
 
