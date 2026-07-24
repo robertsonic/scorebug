@@ -5,15 +5,16 @@
 		"colour": "FF0000"
 	},
 	"away": {
-		"colour": "FF8810"
+		"colour": "FF8800"
 	},
-	"play_lock": -1,
+	"play_lock": 0,
 	"srt": {
-		"live_requested": true,
+		"live_requested": false,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
 		"width": 1920,
 		"height": 1080,
 		"fps": 25,
 		"bitrate": "4M"
-	}
+	},
+	"debug": false
 }

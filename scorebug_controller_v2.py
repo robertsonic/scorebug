@@ -321,6 +321,8 @@ def build_srt_command(srt: dict[str, Any]) -> list[str]:
         "libx264",
         "-preset",
         "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
         "-b:v",
         bitrate,
         "-maxrate",
@@ -333,6 +335,64 @@ def build_srt_command(srt: dict[str, Any]) -> list[str]:
         "mpegts",
         url,
     ]
+    # return [
+    #     "ffmpeg",
+    #     "-f",
+    #     "rawvideo",
+    #     "-pix_fmt",
+    #     "bgra",
+    #     "-video_size",
+    #     f"{width}x{height}",
+    #     "-framerate",
+    #     str(fps),
+    #     "-i",
+    #     "pipe:0",
+    #     "-stream_loop",
+    #     "-1",
+    #     "-i",
+    #     "sonican-blues-rock-victory-inspirational-loop-465097.mp3",
+    #     "-map",
+    #     "0:v:0",
+    #     "-map",
+    #     "1:a:0",
+    #     "-c:v",
+    #     "libx264",
+    #     "-preset",
+    #     "ultrafast",
+    #     "-pix_fmt",
+    #     "yuv420p",
+    #     "-profile:v",
+    #     "main",
+    #     "-level:v",
+    #     "4.0",
+    #     "-b:v",
+    #     bitrate,
+    #     "-maxrate",
+    #     bitrate,
+    #     "-bufsize",
+    #     "8M",
+    #     "-g",
+    #     str(fps * 2),
+    #     "-keyint_min",
+    #     str(fps * 2),
+    #     "-sc_threshold",
+    #     "0",
+    #     "-c:a",
+    #     "aac",
+    #     "-profile:a",
+    #     "aac_low",
+    #     "-b:a",
+    #     "128k",
+    #     "-ar",
+    #     "48000",
+    #     "-ac",
+    #     "2",
+    #     "-f",
+    #     "mpegts",
+    #     "-mpegts_flags",
+    #     "+resend_headers",
+    #     url,
+    # ]
 
 
 def main() -> None:
@@ -389,11 +449,16 @@ def main() -> None:
             away_colour = get_team_colour(away, "000000")
             play_lock = int(game.get("play_lock", 0) or 0)
 
+            debug: bool = game.get("debug", False)
+
             try:
-                latest_play = last_play
+                latest_play = play_lock
                 if play_lock < 0:
                     randy = random.random()
-                    print(randy)
+                    if debug:
+                        print(
+                            f"Random Number: {randy}--------------------------------------------------------------------------------"
+                        )
                     if randy < ((1 / 3) if latest_play > 1 else (1 / 10)):
                         latest_play = (last_play + 1) if last_play > 1 else 2
                     else:
@@ -449,7 +514,7 @@ def main() -> None:
                         last_play == 1 and last_play != latest_play
                     )
 
-                    send_latest(updates, message)
+                    send_latest(updates, {**message, "debug": debug})
                     print(f"Sent graphic state for play {latest_play}")
 
                     new_game = None
