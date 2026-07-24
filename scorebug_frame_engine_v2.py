@@ -351,7 +351,7 @@ class FrameEngine:
         )
 
         t4 = time.perf_counter_ns()
-        self._draw_common_overlays(image)
+        self._draw_common_overlays(self.static_render)
         t5 = time.perf_counter_ns()
         image = Image.alpha_composite(self.static_render, status_overlay)
         t6 = time.perf_counter_ns()
