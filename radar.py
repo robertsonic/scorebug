@@ -20,7 +20,7 @@ from typing import Optional
 RADAR_HOST = os.getenv("RADAR_HOST", "192.168.55.103")
 RADAR_PORT = int(os.getenv("RADAR_PORT", "23"))
 
-API_HOST = os.getenv("RADAR_API_HOST", "127.0.0.1")
+API_HOST = os.getenv("RADAR_API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("RADAR_API_PORT", "1992"))
 
 # A sample must be at least this fast to be considered part of a pitch.
