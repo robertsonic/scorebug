@@ -47,23 +47,36 @@ reset_elements = {
     "home_player": {"text": ""},
     "status": {"text": "", "fade": False},
     "clock": {"text": ""},
+    "pitch_speed": {"text": ""}
 }
 old_elements = copy.deepcopy(reset_elements)
 
 status_msg_index = math.floor(random.random() * len(STATUS_MSGS))
 
 
-def get_pitch_speed() -> str:
+def get_pitch_speed(now: datetime) -> str:
 
     response = requests.get(
-        f"http://127.0.0.1/latest",
-        timeout=10,
+        f"http://127.0.0.1:1992/latest",
+        timeout=1,
     )
     response.raise_for_status()
 
     radar_data = response.json()
 
-    return
+    if radar_data.get("available",False):
+        
+        event = radar_data.get("event",None)
+        
+        if event is not None:
+        
+            timestamp: float = event.get("timestamp",0)
+            
+            if now.timestamp() - timestamp <= 15:
+                
+                return str(event['speed_mph']) if event['direction'] == 'approaching' else ""
+
+    return ""
 
 
 def get_box_score(game_id: str | int, compeition: str) -> dict[str, Any]:
@@ -176,6 +189,7 @@ def calculate_elements(
     global old_elements
     global clock
 
+    now = datetime.now(ZoneInfo("Europe/London"))
     situation = payload.get("situation", {})
     linescore = payload.get("linescore", {})
     away_totals = linescore.get("awaytotals", {})
@@ -251,7 +265,8 @@ def calculate_elements(
         "status": {
             "text": status_text,
         },
-        "clock": {"text": datetime.now(ZoneInfo("Europe/London")).strftime("%H:%M %Z")},
+        "clock": {"text": now.strftime("%H:%M %Z")},
+        "pitch_speed" : {"text": get_pitch_speed(now)}
     }
 
     if half == "0":
@@ -265,7 +280,6 @@ def calculate_elements(
         elements["inning_top"] = {"data": False}
         elements["inning_bottom"] = {"data": True}
 
-    latest_radar_data = requests.get("http://127.0.0.1:1992/latest")
 
     changed_elements: set[str] = set()
 

@@ -320,6 +320,13 @@ class FrameEngine:
                 text_font=self.font_small,
                 bbox=(1800, 20, 1900, 80),
             ),
+            "pitch_speed": TextElement(
+                font=self.font_medium,
+                anchor="rm",
+                align="right",
+                bbox=(1770, 925, 1920, 1000),
+                pos=(1800,952)
+            )
         }
 
         self.fixed_elements: dict[str, FixedElement] = {
