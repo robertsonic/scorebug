@@ -382,7 +382,7 @@ class FrameEngine:
         image = (
             Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
             if self.lineup_render is None
-            else self.static_render.copy()
+            else self.lineup_render.copy()
         )
         draw = ImageDraw.Draw(image)
 

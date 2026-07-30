@@ -290,6 +290,17 @@
       const btn = document.getElementById("general-save");
       const form = document.getElementById("general-form");
       
+      const hexRegex = /^[0-9A-Fa-f]{6}$/;
+          
+      const homeColour = form.home_colour.value.trim();
+      const awayColour = form.away_colour.value.trim();
+          
+      if (!hexRegex.test(homeColour) || !hexRegex.test(awayColour)) {
+          alert("Home and Away colours must be 6-digit hexadecimal values (e.g. FF0000 or 00ff00).");
+          return;
+      }
+
+
       btn.disabled = true;
       btn.textContent = "Saving...";
         try {

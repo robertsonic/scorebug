@@ -1,20 +1,21 @@
 {
-	"id": 191179,
+	"id": 191230,
 	"competition": "bbf_div_5",
 	"home": {
 		"colour": "FF0000"
 	},
 	"away": {
-		"colour": "FF8800"
+		"colour": "FFFFFF"
 	},
-	"play_lock": -1,
+	"play_lock": 1,
 	"srt": {
-		"live_requested": false,
+		"live_requested": true,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
 		"width": 1920,
 		"height": 1080,
 		"fps": 25,
 		"bitrate": "4M"
 	},
-	"debug": false
+	"debug": true,
+	"render_debug": false
 }
