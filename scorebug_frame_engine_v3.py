@@ -324,7 +324,7 @@ class FrameEngine:
                 font=self.font_medium,
                 anchor="rt",
                 align="left",
-                bbox=(1770, 925, 1920, 1000),
+                bbox=(1750, 925, 1920, 950),
                 pos=(1850, 925),
             ),
         }
