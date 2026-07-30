@@ -12,12 +12,16 @@ from dataclasses import asdict, dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
 
+import socket
+
+ip = socket.gethostbyname(socket.gethostname())
+target = ".".join(ip.split(".")[:3]) + ".200"
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-RADAR_HOST = os.getenv("RADAR_HOST", "192.168.55.103")
+RADAR_HOST = os.getenv("RADAR_HOST", target)
 RADAR_PORT = int(os.getenv("RADAR_PORT", "23"))
 
 API_HOST = os.getenv("RADAR_API_HOST", "0.0.0.0")
@@ -34,7 +38,7 @@ MIN_EVENT_SAMPLES = int(os.getenv("MIN_EVENT_SAMPLES", "3"))
 
 # Optional amplitude filter. Set to zero to disable.
 MIN_SIGNAL = int(os.getenv("MIN_SIGNAL", "0"))
-SENSITIVITY = 40
+SENSITIVITY = 19
 # Number of completed events retained in RAM.
 HISTORY_SIZE = int(os.getenv("RADAR_HISTORY_SIZE", "50"))
 
@@ -164,7 +168,8 @@ class RadarState:
                 f"{event.speed_kmh:.1f} km/h / "
                 f"{event.speed_mph:.1f} mph "
                 f"({event.sample_count} samples) "
-                " - "
+                f"{event.direction} "
+                "- "
                 f"{time.monotonic()}"
                 
             )

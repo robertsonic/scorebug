@@ -47,7 +47,7 @@ reset_elements = {
     "home_player": {"text": ""},
     "status": {"text": "", "fade": False},
     "clock": {"text": ""},
-    "pitch_speed": {"text": ""}
+    "pitch_speed": {"text": ""},
 }
 old_elements = copy.deepcopy(reset_elements)
 
@@ -64,19 +64,23 @@ def get_pitch_speed(now: datetime) -> str:
 
     radar_data = response.json()
 
-    if radar_data.get("available",False):
-        
-        event = radar_data.get("event",None)
-        
-        if event is not None:
-        
-            timestamp: float = event.get("timestamp",0)
-            
-            if now.timestamp() - timestamp <= 15:
-                
-                return str(event['speed_mph']) if event['direction'] == 'approaching' else ""
+    if not radar_data.get("available", False):
+        return ""
 
-    return ""
+    event = radar_data.get("event", None)
+
+    if event is None:
+        return ""
+
+    timestamp: float = event.get("timestamp", 0)
+
+    if now.timestamp() - timestamp > 15:
+        return ""
+
+    if event.get("sample_count", 0) < 15:
+        return ""
+
+    return str(event["speed_mph"]) if event["direction"] == "approaching" else ""
 
 
 def get_box_score(game_id: str | int, compeition: str) -> dict[str, Any]:
@@ -266,7 +270,7 @@ def calculate_elements(
             "text": status_text,
         },
         "clock": {"text": now.strftime("%H:%M %Z")},
-        "pitch_speed" : {"text": get_pitch_speed(now)}
+        "pitch_speed": {"text": get_pitch_speed(now)},
     }
 
     if half == "0":
@@ -279,7 +283,6 @@ def calculate_elements(
         elements["away_player"]["text"] = pitcher_text
         elements["inning_top"] = {"data": False}
         elements["inning_bottom"] = {"data": True}
-
 
     changed_elements: set[str] = set()
 
@@ -598,6 +601,8 @@ def main() -> None:
             debug: bool = game.get("debug", False)
             render_debug: bool = game.get("render_debug", False)
 
+            mode = game.get("mode", "game")
+
             try:
                 latest_play = play_lock
 
@@ -620,6 +625,28 @@ def main() -> None:
                             message = {"command": "update", "scene": "starting"}
                         else:
                             raise
+
+                if mode == "pitching":
+                    speed = get_pitch_speed(datetime.now())
+                    if not speed:
+                        continue
+                    print(speed)
+                    send_latest(
+                        updates,
+                        {
+                            "command":" update",
+                            "scene": "pitching",
+                            "stream": build_stream_state(game),
+                            "state": {
+                                "elements": (
+                                    {"pitch_speed": {"text": speed}},
+                                    ["pitch_speed"],
+                                )
+                            },
+                        },
+                    )
+                    time.sleep(POLL_INTERVAL)
+                    continue
 
                 if (
                     latest_play > last_play
