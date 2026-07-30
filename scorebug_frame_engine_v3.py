@@ -321,7 +321,7 @@ class FrameEngine:
                 bbox=(1800, 20, 1900, 80),
             ),
             "pitch_speed": TextElement(
-                font=self.font_medium,
+                font=self.font_small,
                 anchor="rt",
                 align="left",
                 bbox=(1750, 920, 1920, 950),
