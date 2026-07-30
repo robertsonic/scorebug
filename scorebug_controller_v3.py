@@ -55,9 +55,9 @@ status_msg_index = math.floor(random.random() * len(STATUS_MSGS))
 
 
 def get_pitch_speed(now: datetime) -> str:
-
+    return str(random.random() * 100)
     response = requests.get(
-        f"http://127.0.0.1:1992/latest",
+        f"http://192.168.55.105:1992/latest",
         timeout=1,
     )
     response.raise_for_status()

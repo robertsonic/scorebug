@@ -322,11 +322,11 @@ class FrameEngine:
             ),
             "pitch_speed": TextElement(
                 font=self.font_medium,
-                anchor="rm",
-                align="right",
+                anchor="rt",
+                align="left",
                 bbox=(1770, 925, 1920, 1000),
-                pos=(1800,952)
-            )
+                pos=(1850, 925),
+            ),
         }
 
         self.fixed_elements: dict[str, FixedElement] = {
