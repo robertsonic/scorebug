@@ -7,7 +7,7 @@
 	"away": {
 		"colour": "FFFFFF"
 	},
-	"play_lock": 2,
+	"play_lock": 3,
 	"srt": {
 		"live_requested": true,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
@@ -16,6 +16,6 @@
 		"fps": 25,
 		"bitrate": "4M"
 	},
-	"debug": true,
-	"render_debug": false
+	"debug": false,
+	"render_debug": true
 }
