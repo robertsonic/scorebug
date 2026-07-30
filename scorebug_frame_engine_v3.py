@@ -325,7 +325,7 @@ class FrameEngine:
                 anchor="rt",
                 align="left",
                 bbox=(1750, 920, 1920, 950),
-                pos=(1850, 920),
+                pos=(1750, 920),
             ),
         }
 
