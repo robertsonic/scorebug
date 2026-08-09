@@ -83,52 +83,6 @@ def get_pitch_speed(now: datetime) -> str:
     return str(event["speed_mph"]) if event["direction"] == "approaching" else ""
 
 
-def get_box_score(game_id: str | int, compeition: str) -> dict[str, Any]:
-
-    comp_map = {
-        "bbf_div_1": "2026-d1",
-        "bbf_div_2": "2026-d2",
-        "bbf_div_3": "2026-d3",
-        "bbf_div_4": "2026-d4",
-        "bbf_div_5": "2026-d5",
-    }
-
-    comp = comp_map[compeition]
-
-    response = requests.get(
-        f"https://stats.britishbaseball.org.uk/en/events/{comp}/schedule-and-results/box-score/{game_id}",
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "text/html",
-        },
-        timeout=10,
-    )
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    page = json.loads(html.unescape(soup.find("div", id="app")["data-page"]))
-
-    game = page["props"]["viewData"]["original"]["gameData"]
-
-    return game
-
-
-def get_latest_play(game_id: str | int) -> int:
-    response = requests.get(
-        f"https://game.wbsc.org/gamedata/{game_id}/latest.json", timeout=10
-    )
-    response.raise_for_status()
-    return int(response.text.strip())
-
-
-def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
-    url = f"https://game.wbsc.org/gamedata/{game_id}/play{play_number}.json"
-    print(url)
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return response.json()
-
-
 def batting_avg(ab: Any, hits: Any) -> str:
     ab_int = int(ab or 0)
     hits_int = int(hits or 0)
@@ -531,13 +485,42 @@ def main() -> None:
     game: dict[str, Any] | None = None
     last_game_mtime = 0.0
     last_play = 0
+
     status_timer = STATUS_TIMEOUT
+    update_timer = 0
+    pitch_timer = 0
 
     game_details: dict = {}
     message: dict = {}
 
     try:
         while True:
+
+            if pitch_timer < 1 and update_timer < 3:
+                continue
+            elif pitch_timer >= 1:
+                pitch_timer = 0
+                ###TESTING
+
+                message = {
+                    "command": "update",
+                    "scene": "scorebug",
+                    "state": {
+                        "elements": (
+                            {"pitch_speed": {"text": get_pitch_speed(0)}},
+                            ["pitch_speed"],
+                        )
+                    },
+                }
+
+                ###
+                send_latest(
+                    updates,
+                    {**message, "debug": debug, "render_debug": render_debug},
+                )
+                print(f"Sent graphic state for pitch_speed")
+                continue
+
             new_game, last_game_mtime = load_game_if_changed(last_game_mtime)
 
             if new_game is not None:
@@ -634,7 +617,7 @@ def main() -> None:
                     send_latest(
                         updates,
                         {
-                            "command":" update",
+                            "command": " update",
                             "scene": "pitching",
                             "stream": build_stream_state(game),
                             "state": {
@@ -701,6 +684,7 @@ def main() -> None:
                             "elements": calculate_elements(payload, new_game),
                             **common,
                         }
+
                         message = {
                             "command": "update",
                             "scene": "scorebug",
@@ -724,7 +708,9 @@ def main() -> None:
             except (requests.RequestException, KeyError, ValueError, TypeError) as exc:
                 print(f"Data update failed: {exc}")
 
-            time.sleep(POLL_INTERVAL)
+            time.sleep(1)
+            update_timer += 1
+            pitch_timer += 1
             status_timer += POLL_INTERVAL
 
     except KeyboardInterrupt:
