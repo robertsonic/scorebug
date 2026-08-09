@@ -43,12 +43,13 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
     }
 
 
-def get_latest_play(game_id: str | int) -> int:
+def get_latest_play(game_id: str | int, latest_play: int) -> int:
     response = requests.get(
         f"https://game.wbsc.org/gamedata/{game_id}/latest.json", timeout=10
     )
     response.raise_for_status()
-    return int(response.text.strip())
+    new = int(response.text.strip())
+    return new if new > latest_play else latest_play
 
 
 def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
@@ -70,14 +71,12 @@ def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
 def get_wbsc_data(game_id: str | int, latest_play: int = 0) -> dict[str, Any]:
 
     try:
-        current_latest_play = get_latest_play(game_id)
+        current_latest_play = get_latest_play(game_id, latest_play)
 
-        if current_latest_play > latest_play:
-
-            try:
-                return get_play(game_id, current_latest_play)
-            except:
-                return {}
+        try:
+            return get_play(game_id, current_latest_play)
+        except:
+            return {}
 
     except Exception as e:
         return {}
