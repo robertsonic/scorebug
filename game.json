@@ -1,25 +1,25 @@
 {
-	"id": 191229,
-	"competition": "bbf_div_5",
-	"mode": "game",
-	"home": {
-		"colour": "FF0000"
-	},
-	"away": {
-		"colour": "FFAA44"
-	},
-	"play_lock": 1,
-	"srt": {
-		"live_requested": true,
-		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
-		"width": 1920,
-		"height": 1080,
-		"fps": 25,
-		"bitrate": "4M"
-	},
-	"radar": {
-		"active": false
-	},
-	"debug": false,
-	"render_debug": false
+    "id": 206473,
+    "competition": "bbf_div_4",
+    "mode": "game",
+    "home": {
+        "colour": "FFFFFF"
+    },
+    "away": {
+        "colour": "000000"
+    },
+    "play_lock": 0,
+    "srt": {
+        "live_requested": true,
+        "url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
+        "width": 1920,
+        "height": 1080,
+        "fps": 25,
+        "bitrate": "4M"
+    },
+    "radar": {
+        "active": false
+    },
+    "debug": true,
+    "render_debug": false
 }

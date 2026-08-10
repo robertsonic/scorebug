@@ -61,19 +61,20 @@ def load_game_if_changed(
 
 
 def send_latest(updates: mp.Queue, message: dict[str, Any]) -> None:
-    try:
-        updates.put_nowait(message)
-        return
-    except queue.Full:
-        pass
-    try:
-        updates.get_nowait()
-    except queue.Empty:
-        pass
-    try:
-        updates.put_nowait(message)
-    except queue.Full:
-        pass
+    # try:
+    #     updates.put_nowait(message)
+    #     return
+    # except queue.Full:
+    #     pass
+    # try:
+    #     updates.get_nowait()
+    # except queue.Empty:
+    #     pass
+    # try:
+    #     updates.put_nowait(message)
+    # except queue.Full:
+    #     pass
+    updates.put_nowait(message)
 
 
 def extract_config_data(game: Any):
@@ -222,6 +223,8 @@ def calculate_elements(
                 occupied(situation.get("runner3")),
             ]
         },
+        "location": {"text": payload.get("location", "Ballpark")},
+        "start_time": {"text": payload.get("start_time", "Soon")},
         # "inning_top": {"data": False},
         # "inning_bottom": {"data": False},
         "away_player": {"text": ""},
@@ -247,6 +250,15 @@ def calculate_elements(
         elements["inning_top"] = {"data": False}
         elements["inning_bottom"] = {"data": True}
 
+    if situation.get("currentinning", "") == "FINAL":
+        payload["status"]["fixed_text"] = status_text
+        payload["status"]["fade"] = False
+        elements["status"]["fixed_text"] = status_text
+        elements["status"]["fade"] = False
+        elements["inning_top"] = {"data": False}
+        elements["inning_bottom"] = {"data": False}
+        elements["outs"]["text"] = "FINAL"
+
     elements = {**elements, **build_lineup_state(payload)}
 
     changed_elements: set[str] = set()
@@ -264,7 +276,9 @@ def calculate_elements(
         elements_to_render["status"]["fixed_text"] = payload.get("status", {}).get(
             "fixed_text", ""
         )
-        elements_to_render["status"]["fade"] = True
+        elements_to_render["status"]["fade"] = payload.get("status", {}).get(
+            "fade", True
+        )
 
     return elements_to_render, elements, changed_elements
 
@@ -282,7 +296,7 @@ def main() -> None:
     radar_stop_event = mp.Event()
 
     # Frame engine
-    frame_updates: mp.Queue = mp.Queue(maxsize=1)
+    frame_updates: mp.Queue = mp.Queue()
     frame_stop_event = mp.Event()
 
     frame_process = mp.Process(
@@ -338,6 +352,7 @@ def main() -> None:
                 if new_game is not None:
                     game = new_game
                     message["command"] = "reload"
+                    latest_play = 0
                     (
                         mode,
                         game_id,
@@ -360,7 +375,8 @@ def main() -> None:
                     next_wbsc_poll = now + WBSC_POLL_INTERVAL
 
                     if play_lock == 0:
-                        wbsc_data = {**wbsc_data, **get_wbsc_data(game_id, latest_play)}
+                        new_wbsc_data, latest_play = get_wbsc_data(game_id, latest_play)
+                        wbsc_data = {**wbsc_data, **new_wbsc_data}
                     elif play_lock == -1:
 
                         latest_play = latest_play if latest_play > 1 else 2
@@ -375,31 +391,35 @@ def main() -> None:
                         latest_play = play_lock
                         wbsc_data = {**wbsc_data, **get_play(game_id, latest_play)}
 
-                    if latest_play == 1:
+                    statuses = STATUS_MESSAGES.copy()
+                    platecount = wbsc_data.get("platecount", False)
+                    status_text: str = ""
+                    if platecount:
+                        status_text = " ".join(
+                            str(platecount[0].get("label", "")).split("<br>")
+                        )
+
+                    if not latest_play:
+                        latest_scene = "starting"
+                    elif latest_play == 1:
                         latest_scene = "lineup"
+                        statuses = [status_text]
                     else:
                         latest_scene = "scorebug"
                         if radar.get("active", False):
                             pitch_speed = random.choice(
                                 [45, 77, 90, 100, 32, 61]
                             )  # get_pitch_speed()
-                        platecount = wbsc_data.get("platecount", False)
 
-                        status_text: str = ""
-                        if platecount:
-                            status_text = " ".join(
-                                str(platecount[0].get("label", "")).split("<br>")
-                            )
-
-                        statuses = STATUS_MESSAGES.copy()
                         batter, pitcher = get_batter_and_pitcher(wbsc_data)
                         b_line = batter_line(batter).strip()
                         if b_line:
                             statuses.extend([f"Previous At Bats: {b_line}"] * 6)
-                        status = {
-                            "text": status_text,
-                            "fixed_text": random.choice(statuses),
-                        }
+
+                    status = {
+                        "text": status_text,
+                        "fixed_text": random.choice(statuses),
+                    }
 
             if scene != latest_scene:
                 message["command"] = "reload"

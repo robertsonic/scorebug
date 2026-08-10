@@ -15,23 +15,27 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
         "bbf_div_4": "2026-d4",
         "bbf_div_5": "2026-d5",
     }
+    game: dict[str, Any] = {}
 
-    comp = comp_map[competition]
+    try:
+        comp = comp_map[competition]
 
-    response = requests.get(
-        f"https://stats.britishbaseball.org.uk/en/events/{comp}/schedule-and-results/box-score/{game_id}",
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "text/html",
-        },
-        timeout=10,
-    )
-    response.raise_for_status()
+        response = requests.get(
+            f"https://stats.britishbaseball.org.uk/en/events/{comp}/schedule-and-results/box-score/{game_id}",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "text/html",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    page = json.loads(html.unescape(soup.find("div", id="app")["data-page"]))
+        soup = BeautifulSoup(response.text, "html.parser")
+        page = json.loads(html.unescape(soup.find("div", id="app")["data-page"]))
 
-    game = page["props"]["viewData"]["original"]["gameData"]
+        game = page["props"]["viewData"]["original"]["gameData"]
+    except:
+        print("Failure to get Box Score with:", competition, game_id)
 
     return {
         "home_name": game.get("homelabel", "Home"),
@@ -39,7 +43,7 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
         "away_name": game.get("awaylabel", "Away"),
         "away_short": game.get("awayioc", "AWY"),
         "location": game.get("stadium", "Ballpark"),
-        "start_time": game.get("start", None),
+        "start_time": game.get("start", "Soon"),
     }
 
 
@@ -71,12 +75,13 @@ def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
 def get_wbsc_data(game_id: str | int, latest_play: int = 0) -> dict[str, Any]:
 
     try:
-        current_latest_play = get_latest_play(game_id, latest_play)
-
+        new_latest_play = get_latest_play(game_id, latest_play)
+        if not new_latest_play > latest_play:
+            return {}, latest_play
         try:
-            return get_play(game_id, current_latest_play)
+            return get_play(game_id, new_latest_play), new_latest_play
         except:
-            return {}
+            return {}, new_latest_play
 
     except Exception as e:
-        return {}
+        return {}, latest_play

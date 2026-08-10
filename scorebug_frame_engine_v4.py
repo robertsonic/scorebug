@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import threading
 import copy
-import os
+import random
 import queue
 import subprocess
 import time
@@ -24,6 +24,7 @@ FPS = 25
 FB = "/dev/fb0"
 SCOREBUG_TEMPLATE_FILE = "templatev4.jpeg"
 LINEUP_TEMPLATE_FILE = "lineup.png"
+STARTING_TEMPLATE_FILE = "startingv2.jpeg"
 MAGENTA = "#FF00FF"
 
 
@@ -155,8 +156,8 @@ class FrameEngine:
         self.font_small = self._load_font("Gotham-Bold.otf", 17)
         self.font_smaller = self._load_font("Gotham-Bold.otf", 16)
         self.font_status = self._load_font("source-code-pro.bold.ttf", 16)
-        self.lineup_medium = self._load_font("Gotham-Book.otf", 56)
-        self.lineup_small = self._load_font("Gotham-Book.otf", 24)
+        self.lineup_medium = self._load_font("Gotham-Book.otf", 58)
+        self.lineup_small = self._load_font("Gotham-Book.otf", 26)
 
         self.faders: dict[str, Element] = {}
         self.opacity_hold_ns = 5_000_000_000
@@ -207,18 +208,18 @@ class FrameEngine:
         self.scenes: dict[str, dict[str, Element]] = {
             "scorebug": {
                 "away_short": TextElement(
-                    pos=(828, 950),
+                    pos=(828, 973),
                     font=self.font_large,
                     stroke_width=1,
-                    anchor="lt",
-                    bbox=(828, 940, 1038, 1110),
+                    anchor="lm",
+                    bbox=(828, 940, 1038, 1013),
                 ),
                 "away_score": TextElement(
-                    pos=(1138, 950),
+                    pos=(1138, 973),
                     font=self.font_large,
                     stroke_width=1,
-                    anchor="rt",
-                    bbox=(1038, 940, 1138, 1110),
+                    anchor="rm",
+                    bbox=(1038, 940, 1138, 1013),
                 ),
                 "away_colour": RectElement(
                     pos=(810, 934, 1200, 1013), fill="away_colour"
@@ -228,23 +229,23 @@ class FrameEngine:
                     fill="home_colour",
                 ),
                 "home_short": TextElement(
-                    pos=(1218, 950),
+                    pos=(1218, 973),
                     font=self.font_large,
                     stroke_width=1,
-                    anchor="lt",
-                    bbox=(1218, 940, 1428, 1110),
+                    anchor="lm",
+                    bbox=(1218, 940, 1428, 1013),
                 ),
                 "home_score": TextElement(
-                    pos=(1528, 950),
+                    pos=(1528, 973),
                     font=self.font_large,
                     stroke_width=1,
-                    anchor="rt",
-                    bbox=(1428, 940, 1528, 1110),
+                    anchor="rm",
+                    bbox=(1428, 940, 1528, 1013),
                 ),
                 "outs": TextElement(
                     pos=(1755, 837),
                     font=self.font_small,
-                    anchor="mb",
+                    anchor="ms",
                     align="center",
                     bbox=(1700, 800, 1890, 850),
                 ),
@@ -273,7 +274,7 @@ class FrameEngine:
                 ),
                 "pitch_speed": TextElement(
                     font=self.font_small,
-                    anchor="mt",
+                    anchor="ma",
                     align="center",
                     bbox=(1750, 930, 1830, 950),
                     pos=(1790, 930),
@@ -281,7 +282,7 @@ class FrameEngine:
                 "count": TextElement(
                     pos=(1790, 1000),
                     font=self.font_medium,
-                    anchor="mb",
+                    anchor="ms",
                     align="center",
                     bbox=(1750, 950, 1920, 1100),
                 ),
@@ -342,6 +343,7 @@ class FrameEngine:
                     anchor="mm",
                     align="center",
                     bbox=(104, 80, 943, 138),
+                    stroke_width=1,
                 ),
                 "home_name": TextElement(
                     pos=(1390, 110),
@@ -349,9 +351,91 @@ class FrameEngine:
                     anchor="mm",
                     align="center",
                     bbox=(974, 80, 1816, 138),
+                    stroke_width=1,
                 ),
-            },  # CRAP!
-            "starting": {"away_name"},
+                "status": TextElement(
+                    pos=(960, 995),
+                    font=self.font_medium,
+                    bbox=(500, 965, 1420, 1025),
+                    anchor="mm",
+                    align="center",
+                    fade=True,
+                ),
+            },
+            "starting": {
+                "away_name": TextElement(
+                    pos=(
+                        (self.canvas_dimensions[0] // 2) - 50,
+                        (self.canvas_dimensions[1] // 2) + 205,
+                    ),
+                    font=self.font_large,
+                    fill="white",
+                    align="right",
+                    anchor="rs",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    bbox=(
+                        0,
+                        ((self.canvas_dimensions[1] // 2) + 205 - 70),
+                        (self.canvas_dimensions[0] // 2) - 50,
+                        ((self.canvas_dimensions[1] // 2) + 215),
+                    ),
+                ),
+                "home_name": TextElement(
+                    pos=(
+                        (self.canvas_dimensions[0] // 2) + 50,
+                        (self.canvas_dimensions[1] // 2) + 205,
+                    ),
+                    font=self.font_large,
+                    fill="white",
+                    align="left",
+                    anchor="ls",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    bbox=(
+                        (self.canvas_dimensions[0] // 2) + 50,
+                        ((self.canvas_dimensions[1] // 2) + 205 - 70),
+                        self.canvas_dimensions[0],
+                        ((self.canvas_dimensions[1] // 2) + 215),
+                    ),
+                ),
+                "location": TextElement(
+                    pos=(
+                        (self.canvas_dimensions[0] // 2) - 50,
+                        (self.canvas_dimensions[1] // 2) + 215,
+                    ),
+                    font=self.font_medium,
+                    fill="white",
+                    align="right",
+                    anchor="ra",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    bbox=(
+                        0,
+                        (self.canvas_dimensions[1] // 2) + 215,
+                        (self.canvas_dimensions[0] // 2) - 50,
+                        (self.canvas_dimensions[1] // 2) + 215 + 60,
+                    ),
+                ),
+                "start_time": TextElement(
+                    pos=(
+                        (self.canvas_dimensions[0] // 2) + 50,
+                        (self.canvas_dimensions[1] // 2) + 215,
+                    ),
+                    font=self.font_medium,
+                    fill="white",
+                    align="right",
+                    anchor="la",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    bbox=(
+                        (self.canvas_dimensions[0] // 2) + 50,
+                        (self.canvas_dimensions[1] // 2) + 215,
+                        self.canvas_dimensions[0],
+                        (self.canvas_dimensions[1] // 2) + 215 + 60,
+                    ),
+                ),
+            },
             "common": {
                 "clock": RectElement(
                     pos=(1800, 20, 1900, 80),
@@ -384,32 +468,6 @@ class FrameEngine:
 
             draw = ImageDraw.ImageDraw(image)
 
-            draw.text(
-                # (round(image.size[0] / 2), image.size[1] - 40), v1
-                (round(image.size[0] / 2), round(image.size[1] / 2) + 205),
-                font=self.font_large,
-                fill="white",
-                align="center",
-                anchor="mb",
-                stroke_fill="black",
-                stroke_width=1,
-                text=str.upper(
-                    f"{self.state["away_name"]} @ {self.state["home_name"]}"
-                ),
-            )
-
-            draw.text(
-                # (round(image.size[0] / 2), image.size[1] - 30), v1
-                (round(image.size[0] / 2), round(image.size[1] / 2) + 215),
-                font=self.font_medium,
-                fill="white",
-                align="center",
-                anchor="mt",
-                stroke_fill="black",
-                stroke_width=1,
-                text=f"{self.state["location"]} - {self.state['start_time']}",
-            )
-
             if self.competition_logo is not None:
                 image.alpha_composite(self.competition_logo, (15, 25))
 
@@ -429,7 +487,40 @@ class FrameEngine:
             scene = self.scenes[self.scene]
             print(f"Rendering {self.scene}")
 
-            if self.scene == "scorebug":
+            if self.scene == "starting":
+
+                image = self._load_imgfile_and_resize(STARTING_TEMPLATE_FILE)
+                draw = ImageDraw.ImageDraw(image)
+
+                draw.text(
+                    (
+                        (self.canvas_dimensions[0] / 2),
+                        (self.canvas_dimensions[1] / 2) + 205,
+                    ),
+                    font=self.font_large,
+                    fill="white",
+                    align="center",
+                    anchor="ms",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    text=" @ ",
+                )
+
+                draw.text(
+                    (
+                        (self.canvas_dimensions[0] / 2),
+                        (self.canvas_dimensions[1] // 2) + 215,
+                    ),
+                    font=self.font_medium,
+                    fill="white",
+                    align="center",
+                    anchor="ma",
+                    stroke_fill="black",
+                    stroke_width=1,
+                    text=" - ",
+                )
+
+            elif self.scene == "scorebug":
 
                 image = self._load_imgfile_and_resize(SCOREBUG_TEMPLATE_FILE)
 
@@ -450,7 +541,7 @@ class FrameEngine:
 
                 image = ImageChops.multiply(image, team_colours)
 
-            if self.scene == "lineup":
+            elif self.scene == "lineup":
 
                 image = self._load_imgfile_and_resize(LINEUP_TEMPLATE_FILE)
 
@@ -501,6 +592,8 @@ class FrameEngine:
                             anchor="lm",
                             align="left",
                             text=line,
+                            stroke_width=1,
+                            stroke_fill="black",
                         )
                     x += 1
             #         112, 236
@@ -526,8 +619,8 @@ class FrameEngine:
     def _consume_updates(self) -> None:
         latest = None
         try:
-            while True:
-                latest = self.updates.get_nowait()
+            # while True:
+            latest = self.updates.get_nowait()
         except queue.Empty:
             pass
 
@@ -675,7 +768,10 @@ class FrameEngine:
                 rect: Image.Image | None = None
 
                 try:
-                    elem = copy.deepcopy(self.scenes[self.scene][k])
+                    elem = {
+                        **copy.deepcopy(self.scenes[self.scene]),
+                        **copy.deepcopy(self.scenes["common"]),
+                    }[k]
                 except:
                     continue
 
@@ -768,12 +864,12 @@ class FrameEngine:
                                 pos[0],
                                 elem.pos[1] - bbox[1],
                             )
-                        if anchor[1] == "b":
+                        if anchor[1] == "b" or anchor[1] == "s":
                             pos = (
                                 pos[0],
                                 elem.pos[1] - bbox[1],
                             )
-                        if anchor[1] == "t":
+                        if anchor[1] == "t" or anchor[1] == "a":
                             pos = (pos[0], elem.pos[1] - bbox[1])
                     draw.text(
                         pos,
@@ -1180,7 +1276,7 @@ class FrameEngine:
         )
 
     def run(self) -> None:
-        interval_ns = 1_000_000_000 // self.config.fps
+        interval_ns = 1_000_000_000 // (self.config.fps)
         next_frame_ns = time.perf_counter_ns()
 
         try:
@@ -1191,6 +1287,7 @@ class FrameEngine:
 
                 if now_ns >= next_frame_ns:
                     frame_start_ns = time.perf_counter_ns()
+                    next_frame_ns = frame_start_ns + interval_ns
                     dirty_images = {}
                     if self.state is not None:
                         dirty_images = self.render_scene(now_ns)
@@ -1247,12 +1344,12 @@ class FrameEngine:
                             self.debug_framebuffer_ns = 0
                             self.debug_ffmpeg_ns = 0
 
-                    next_frame_ns += interval_ns
+                    # next_frame_ns += interval_ns
 
-                    if frame_end_ns - next_frame_ns > interval_ns:
-                        next_frame_ns = frame_end_ns + interval_ns
+                    # if frame_end_ns - next_frame_ns > interval_ns:
+                    #    next_frame_ns = frame_end_ns + interval_ns
 
-                remaining_ns = next_frame_ns - time.perf_counter_ns()
+                # remaining_ns = next_frame_ns - time.perf_counter_ns()
 
                 # if remaining_ns > 0:
                 # time.sleep(min(remaining_ns / 1_000_000_000, 0.002))
