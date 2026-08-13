@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, Response, send_file
 import queue
 import json
 import os
@@ -9,7 +9,21 @@ import re
 import subprocess
 import threading
 
+from wbsc import get_box_score, get_schedule
+
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 app = Flask(__name__)
+
+from youtube import youtube_bp
+
+app.register_blueprint(youtube_bp)
+
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "dev-secret-change-me",
+)
+
 GAME_FILE = "game.json"
 EVENT_CLIENTS = []
 EVENT_CLIENTS_LOCK = threading.Lock()
@@ -20,7 +34,6 @@ SRT_RUNTIME_STATE = {
     "message": "SRT is OFFLINE",
     "pid": None,
 }
-
 
 def send_event(event, data):
     message = {
@@ -70,6 +83,7 @@ def competition_buttons():
         ("BBF Div 3", "bbf_div_3"),
         ("BBF Div 4", "bbf_div_4"),
         ("BBF Div 5", "bbf_div_5"),
+        ("Unknown", None),
     ]
 
     html = ""
@@ -119,67 +133,6 @@ def colour_buttons(field_id):
     return html
 
 
-def fetch_games(competition):
-    # TODO: replace this with the real WBSC endpoint once known
-    urls = {
-        "bbf_div_3": "https://stats.britishbaseball.org.uk/en/events/2026-d3/home",
-        "bbf_div_2": "https://stats.britishbaseball.org.uk/en/events/2026-d2/home",
-        "bbf_div_4": "https://stats.britishbaseball.org.uk/en/events/2026-d4/home",
-        "bbf_div_5": "https://stats.britishbaseball.org.uk/en/events/2026-d5/home",
-    }
-    print(f"Fetching games for {competition}")
-
-    url = urls.get(competition)
-    if not url:
-        return []
-
-    response = requests.get(
-        url,
-        timeout=10,
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-GB,en;q=0.9",
-        },
-        allow_redirects=True,
-    )
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    games = []
-
-    for row in soup.select(".homepage-game-row"):
-        score_span = row.select_one(".game-score span[class^='away']")
-        if not score_span:
-            continue
-
-        match = re.search(r"away(\d+)", " ".join(score_span.get("class", [])))
-        if not match:
-            continue
-
-        game_id = int(match.group(1))
-
-        teams = [t.get_text(strip=True) for t in row.select(".team-name")]
-        if len(teams) != 2:
-            continue
-
-        away, home = teams
-
-        game_time_text = row.select_one(".game-time").get_text(" ", strip=True)
-
-        games.append(
-            {
-                "id": game_id,
-                "date": game_time_text,
-                "time": "",
-                "away": away,
-                "home": home,
-            }
-        )
-
-    return games
-
-
 @app.route("/events")
 def events():
     client_queue = queue.Queue(maxsize=20)
@@ -209,6 +162,15 @@ def events():
     )
 
 
+@app.get("/api/preview")
+def preview():
+    return send_file(
+        "preview.jpg",
+        mimetype="image/jpeg",
+        max_age=0,
+    )
+
+
 @app.route("/api/network-status")
 def api_network_status():
     return jsonify(
@@ -229,7 +191,9 @@ def api_upcoming_games():
     if not competition:
         return jsonify([])
 
-    return jsonify(fetch_games(competition))
+    schedule = get_schedule(competition)
+
+    return jsonify(schedule)
 
 
 @app.route("/")
@@ -410,6 +374,26 @@ def request_srt_live():
         "ok": True,
         "live_requested": live_requested,
     }
+
+
+@app.get("/api/box-score")
+def api_box_score():
+    competition = request.args.get("competition", "").strip()
+    game_id = request.args.get("game_id", "").strip()
+
+    if not competition or not game_id:
+        return (
+            jsonify({"ok": False, "error": "Competition and game ID are required"}),
+            400,
+        )
+
+    try:
+        box_score = get_box_score(int(game_id), competition)
+
+        return jsonify({"ok": True, "box_score": box_score})
+
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 app.run(host="0.0.0.0", port=8080)

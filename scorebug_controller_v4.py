@@ -239,6 +239,8 @@ def calculate_elements(
     if ps:
         elements["pitch_speed"] = {"text": f"{ps} MPH", "fade": True}
 
+    elements = {**elements, **build_lineup_state(payload)}
+
     if half == "0":
         elements["away_player"]["text"] = batter_text
         elements["home_player"]["text"] = pitcher_text
@@ -258,8 +260,6 @@ def calculate_elements(
         elements["inning_top"] = {"data": False}
         elements["inning_bottom"] = {"data": False}
         elements["outs"]["text"] = "FINAL"
-
-    elements = {**elements, **build_lineup_state(payload)}
 
     changed_elements: set[str] = set()
 
@@ -379,10 +379,14 @@ def main() -> None:
                         wbsc_data = {**wbsc_data, **new_wbsc_data}
                     elif play_lock == -1:
 
-                        latest_play = latest_play if latest_play > 1 else 2
+                        latest_play = latest_play if latest_play > 0 else 1
+
+                        divisor = 3 if latest_play > 1 else 5
 
                         random_play = (
-                            latest_play + 1 if random.random() < 1 / 3 else latest_play
+                            latest_play + 1
+                            if random.random() < 1 / divisor
+                            else latest_play
                         )
                         if random_play != latest_play or new_game is not None:
                             latest_play = random_play
@@ -414,7 +418,7 @@ def main() -> None:
                         batter, pitcher = get_batter_and_pitcher(wbsc_data)
                         b_line = batter_line(batter).strip()
                         if b_line:
-                            statuses.extend([f"Previous At Bats: {b_line}"] * 6)
+                            statuses.extend([f"Previous At Bats: {b_line}"] * 3)
 
                     status = {
                         "text": status_text,

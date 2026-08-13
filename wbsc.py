@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import html
 import json
 from typing import Any
@@ -5,16 +6,17 @@ from typing import Any
 from bs4 import BeautifulSoup
 import requests
 
+comp_map = {
+    "bbf_div_1": "2026-nbl",
+    "bbf_div_2": "2026-d2",
+    "bbf_div_3": "2026-d3",
+    "bbf_div_4": "2026-d4",
+    "bbf_div_5": "2026-d5",
+}
+
 
 def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
 
-    comp_map = {
-        "bbf_div_1": "2026-d1",
-        "bbf_div_2": "2026-d2",
-        "bbf_div_3": "2026-d3",
-        "bbf_div_4": "2026-d4",
-        "bbf_div_5": "2026-d5",
-    }
     game: dict[str, Any] = {}
 
     try:
@@ -34,8 +36,10 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
         page = json.loads(html.unescape(soup.find("div", id="app")["data-page"]))
 
         game = page["props"]["viewData"]["original"]["gameData"]
+        found = True
     except:
         print("Failure to get Box Score with:", competition, game_id)
+        found = False
 
     return {
         "home_name": game.get("homelabel", "Home"),
@@ -44,6 +48,7 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
         "away_short": game.get("awayioc", "AWY"),
         "location": game.get("stadium", "Ballpark"),
         "start_time": game.get("start", "Soon"),
+        "found": found,
     }
 
 
@@ -85,3 +90,52 @@ def get_wbsc_data(game_id: str | int, latest_play: int = 0) -> dict[str, Any]:
 
     except Exception as e:
         return {}, latest_play
+
+
+def get_schedule(competition):
+    comp = comp_map[competition]
+    url = f"https://stats.britishbaseball.org.uk/en/events/{comp}/schedule-and-results"
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/151.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-GB,en;q=0.9",
+        "Referer": "https://stats.britishbaseball.org.uk/",
+        "Connection": "keep-alive",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
+
+    r = session.get(url)
+
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    app = soup.find(id="app")
+
+    if not app:
+        raise RuntimeError("Couldn't find #app")
+
+    page = json.loads(app["data-page"])
+
+    print(page.keys())
+    print(page["props"].keys())
+
+    games = page["props"]["games"]
+
+    now = datetime.now()
+    cutoff = now + timedelta(days=7)
+
+    return [
+        game
+        for game in games
+        if now
+        <= datetime.strptime(
+            game.get("start_date", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S"
+        )
+        <= cutoff
+    ]

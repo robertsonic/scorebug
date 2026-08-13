@@ -20,10 +20,20 @@ def build_srt_command(srt: dict[str, Any]) -> list[str]:
     bitrate = str(srt.get("bitrate", "4M"))
     url = str(srt.get("url", "")).strip()
 
-    video_preset = ["libx264", "-preset", "ultrafast"]
+    video_preset = [
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-g",
+        "50",
+        "-keyint_min",
+        "50",
+        "-sc_threshold",
+        "0",
+    ]
 
     if platform.system() == "Linux":
-        video_preset = ["h264_v4l2m2m"]
+        video_preset = ["h264_v4l2m2m", "-g", "50"]
 
     return (
         [

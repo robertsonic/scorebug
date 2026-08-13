@@ -1,12 +1,12 @@
 
 <html>
 <head>
-    <title>Richmond Baseball Video Control</title>
+    <title>Richmond Baseball Scorebug & Video Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Richmond Baseball Video Control</h1>
+    <h1>Richmond Baseball Scorebug & Video Control</h1>
     <form id="general-form">
         <label>Competition</label>
         
@@ -19,38 +19,156 @@
         <div class="swatches">
             {{ competition_buttons|safe }}
         </div>
-        <label>Game ID</label>
-        <input name="id" value="{{ game.get('id', '') }}">
-        
-        <!-- <label>Upcoming games</label>
+
+        <label>Upcoming games</label>
         <select
             id="upcoming_games"
             onchange="selectUpcomingGame()"
-            style="width: 100%; font-size: 24px; padding: 14px; border-radius: 8px;"
         >
-            <option value="">Select a competition</option>
-        </select> -->
-        
-        <label>Lock to play #</label>
-        <input
-            id="play_lock"
-            name="play_lock"
-            type="number"
-            min="-1"
-            value="{{ game.get('play_lock', 0) }}"
-            placeholder="Leave at 0 or blank for live playback, -1 for replay"
-        >            
-        <label>Away colour</label>
-        <input id="away_colour" name="away_colour" value="{{ away_colour|safe }}">
-        <div class="swatches">
-            {{ away_buttons|safe }}
-        </div>            
-        <label>Home colour</label>
-        <input id="home_colour" name="home_colour" value="{{ home_colour|safe }}">
-        <div class="swatches">
-            {{ home_buttons|safe }}
+            <option value="">Select a Competition First</option>
+        </select>
+
+        <div id="game-id-section">
+            <label>Game ID</label>
+            <input id="game_id" name="id" value="{{ game.get('id', '') }}">
         </div>
-        <button id="general-save" class="save" type="submit">Save Settings</button>
+        
+        
+        <div id="game-info-mobile-anchor"></div>
+
+        <div class="control-layout">
+        
+            <div class="control-main">
+            
+                <label>Lock to play #</label>
+                <input
+                    id="play-lock"
+                    name="play_lock"
+                    type="number"
+                    min="-1"
+                    value="{{ game.get('play_lock') or '' }}"
+                    placeholder="Leave at 0 or blank for live playback, -1 for replay"
+                >
+            
+                <label>Away colour</label>
+                <input id="away_colour" name="away_colour" value="{{ away_colour|safe }}">
+            
+                <div class="swatches">
+                    {{ away_buttons|safe }}
+                </div>
+            
+                <label>Home colour</label>
+                <input id="home_colour" name="home_colour" value="{{ home_colour|safe }}">
+            
+                <div class="swatches">
+                    {{ home_buttons|safe }}
+                </div>
+            
+                <div id="save-status" class="save-status saved">
+                    <span class="status-pip status-good"></span>
+                    <span id="save-status-text">Settings saved</span>
+                </div>
+            
+                <button id="general-save" class="save" type="submit">
+                    Save Settings
+                </button>
+            
+            </div>
+        
+            <div id="game-panel-desktop">
+                <aside id="game-side-panel">
+                    <br/>
+                    <div class="game-details-card">
+                        <div class="card-title">Game</div>
+                    
+                        <div class="game-matchup">
+                            <strong id="game-away-name">—</strong>
+                            <span class="game-at">@</span>
+                            <strong id="game-home-name">—</strong>
+                        </div>
+                    
+                        <div id="game-start-time" class="game-meta">—</div>
+                        <div id="game-location" class="game-meta">—</div>
+                    </div>
+                
+                    <div class="preview-card">
+                        <div class="card-title">Graphics preview</div>
+                    
+                        <div id="graphics-preview">
+                            <img
+                                id="graphics-preview-image"
+                                src="/api/preview"
+                                alt="Graphics preview"
+                            >
+                        </div>
+                    </div>
+                
+                </aside>
+            </div>
+        
+        </div>
+
+        <fieldset id="youtube-panel">
+            <legend>YouTube</legend>
+
+            <div class="youtube-row">
+                <div>
+                    <span id="youtube-login-pip" class="status-pip status-off"></span>
+                    <strong id="youtube-account">Not connected</strong>
+                </div>
+
+                <a id="youtube-auth-button" class="button-link" href="/youtube/login">
+                    Connect YouTube
+                </a>
+            </div>
+        
+            <div id="youtube-controls" hidden>
+                <div class="youtube-actions">
+                    <button type="button" id="youtube-create-broadcast">
+                        Create Broadcast
+                    </button>
+                    <button type="button" id="youtube-bind-broadcast">
+                        Bind Stream to Broadcast
+                    </button>
+                </div>
+
+                <label>
+                    Broadcast
+                    <select id="youtube-broadcast-select">
+                        <option value="">Select broadcast...</option>
+                    </select>
+                </label>
+
+                <div class="youtube-status-grid">
+                    <div>
+                        <span id="youtube-broadcast-pip" class="status-pip status-off"></span>
+                        Broadcast:
+                        <strong id="youtube-broadcast-status">None selected</strong>
+                    </div>
+                
+                    <div>
+                        <span id="youtube-ingest-pip" class="status-pip status-off"></span>
+                        RTMP:
+                        <strong id="youtube-ingest-status">Inactive</strong>
+                    </div>
+                
+                    <div>
+                        <span id="youtube-health-pip" class="status-pip status-off"></span>
+                        Health:
+                        <strong id="youtube-health-status">No data</strong>
+                    </div>
+                </div>
+
+                <button type="button" id="youtube-live" disabled>
+                    GO LIVE
+                </button>
+
+                <pre id="youtube-errors">No errors</pre>
+            </div>
+        </fieldset>
+
+
+
         <details style="margin-top: 30px;">
             <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
                 Advanced / Network
@@ -117,12 +235,46 @@
         </details>
     </form>
     <script>
+
+        var CURRENT_SCHEDULE = [];
+
         function setColour(fieldId, colour) {
-            document.getElementById(fieldId).value = colour;
+            
+            const field = document.getElementById(fieldId)
+            field.value = colour;
+            
+            field.dispatchEvent(new Event("input"))
+
+            markSettingsUnsaved()
         }
+
+        function updateColour(event) {
+            const field = event.target
+            const team = field.id.replace("_colour", "");
+
+            const colour = `#${field.value}`;
+            const name = document.getElementById(`game-${team}-name`);
+
+            if (name) {
+                name.style.backgroundColor = colour;
+                name.style.padding = "2px 5px";
+                name.style.borderRadius = "3px";
+                name.style.webkitTextStroke = "0.5px black";
+            }
+        }
+
+        document.getElementById("away_colour").addEventListener("input", updateColour)
+        document.getElementById("home_colour").addEventListener("input", updateColour)
+        document.getElementById("away_colour").dispatchEvent(new Event("input"))
+        document.getElementById("home_colour").dispatchEvent(new Event("input"))
+
+
         async function setCompetition(comp) {
-            document.getElementById("competition").value = comp;
-            /*
+            const field = document.getElementById("competition")
+            field.value = comp;
+            field.dispatchEvent(new Event("change"));
+            markSettingsUnsaved()
+            
             const select = document.getElementById("upcoming_games");
             select.innerHTML = '<option value="">Loading...</option>';
             if (!comp) {
@@ -138,26 +290,43 @@
                     select.innerHTML = '<option value="">No upcoming games found</option>';
                     return;
                 }
+
+                CURRENT_SCHEDULE = games
                 
                 for (const game of games) {
                     const option = document.createElement("option");
                     option.value = game.id;
-                    option.textContent = `{{ game.date }} {{ game.time }} - {{ game.away }} @ {{ game.home }} (#{{ game.id }})`;
+                    option.textContent = `${ game.start_date } - ${ game.title } - ${ game.stadium } (#${ game.id })`;
                     select.appendChild(option);
                 }
             } catch (err) {
                 select.innerHTML = '<option value="">Error loading games</option>';
                 console.error(err);
-            }*/
+            }
         }
         function clearPlayLock() {
-            document.getElementById("play_lock").value = "";
+            document.getElementById("play-lock").value = "";
         }
         function selectUpcomingGame() {
             const select = document.getElementById("upcoming_games");
             const gameId = select.value;
             if (gameId) {
                 document.querySelector('input[name="id"]').value = gameId;
+
+                const foundGame = CURRENT_SCHEDULE.find(g => g.id == gameId)
+
+                //FIXES TO MATCH currentBoxScore schema
+                
+                if (foundGame) {
+                    foundGame.away_name = foundGame.awaylabel
+                    foundGame.home_name = foundGame.homelabel
+                    foundGame.start_time = foundGame.start_date
+                    foundGame.found = true
+                    delete foundGame.title
+                    currentBoxScore = foundGame
+                    updateGameDetails()
+                }
+
             }
         }
     </script>
@@ -312,6 +481,13 @@
                 throw new Error("Save failed");
             }
             btn.textContent = "Saved";
+            const status = document.getElementById("save-status");
+            const pip = status.querySelector(".status-pip");
+
+            status.className = "save-status saved";
+            pip.className = "status-pip status-good";
+
+            document.getElementById("save-status-text").textContent = "Settings saved";
             setTimeout(() => {
                 btn.disabled = false;
                 btn.textContent = "Save settings";
@@ -323,5 +499,568 @@
         }
     });
     </script>
+    <script>
+
+        let currentYoutubeStream = null;
+        let currentBroadcastStatus = null;
+
+        async function loadYoutubeStreamStatus() {
+            try {
+                const response = await fetch("/youtube/streams");
+                const data = await response.json();
+            
+                if (!response.ok) {
+                    throw new Error("Unable to load stream status");
+                }
+            
+                // We always use the stream called RTMP
+                const stream = data.streams?.find(
+                    stream => stream.title === "RTMP"
+                );
+            
+                if (!stream) {
+                    document.getElementById("youtube-ingest-status").textContent = "Not found";
+                    document.getElementById("youtube-health-status").textContent = "Unknown";
+                
+                    document.getElementById("youtube-ingest-pip").className =
+                        "status-pip status-error";
+                
+                    document.getElementById("youtube-health-pip").className =
+                        "status-pip status-error";
+                
+                    return;
+                }
+            
+                updateYoutubeStreamStatus(stream);
+            
+            } catch (err) {
+                console.error("YouTube stream status error:", err);
+            }
+        }
+
+        async function loadYoutube() {
+            const account = document.getElementById("youtube-account");
+            const loginPip = document.getElementById("youtube-login-pip");
+            const authButton = document.getElementById("youtube-auth-button");
+            const controls = document.getElementById("youtube-controls");
+        
+            try {
+                const response = await fetch("/youtube/status");
+                const data = await response.json();
+            
+                if (!data.connected) {
+                    account.textContent = "Not connected";
+                    loginPip.className = "status-pip status-off";
+                    authButton.textContent = "Connect YouTube";
+                    authButton.href = "/youtube/login";
+                    controls.hidden = true;
+                    return;
+                }
+            
+                account.textContent = data.channel || "Connected";
+                loginPip.className = "status-pip status-good";
+            
+                authButton.textContent = "Logout";
+                authButton.href = "/youtube/logout";
+            
+                controls.hidden = false;
+
+                loadYoutubeStreamStatus()
+            
+            } catch (err) {
+                account.textContent = "YouTube error";
+                loginPip.className = "status-pip status-error";
+                controls.hidden = true;
+            }
+        }
+
+        function updateYoutubeConfigurationIssues(issues) {
+            const box = document.getElementById("youtube-errors");
+                
+            if (!issues.length) {
+                box.textContent = "No errors";
+                return;
+            }
+        
+            box.textContent = issues
+                .map(issue => {
+                    const severity = issue.severity || "unknown";
+                    const type = issue.type || "unknown";
+                    const reason = issue.reason || "";
+                
+                    return `[${severity.toUpperCase()}] ${type}\n${reason}`;
+                })
+                .join("\n\n");
+        }
+
+        function updateYoutubeStreamStatus(stream) {
+            currentYoutubeStream = stream;
+            const ingestPip = document.getElementById("youtube-ingest-pip");
+            const healthPip = document.getElementById("youtube-health-pip");
+        
+            document.getElementById("youtube-ingest-status").textContent =
+                stream.stream_status || "unknown";
+        
+            document.getElementById("youtube-health-status").textContent =
+                stream.health_status || "unknown";
+        
+            ingestPip.className =
+                "status-pip " +
+                (stream.stream_status === "active"
+                    ? "status-good"
+                    : "status-off");
+        
+            const healthClass = {
+                good: "status-good",
+                ok: "status-warning",
+                bad: "status-error",
+                noData: "status-off",
+            }[stream.health_status] || "status-off";
+        
+            healthPip.className = "status-pip " + healthClass;
+
+            updateYoutubeLiveButton();
+            updateYoutubeConfigurationIssues(stream.configuration_issues || []);
+
+        }
+
+        async function loadSelectedBroadcastStatus() {
+            const select = document.getElementById("youtube-broadcast-select");
+            const broadcastId = select.value;
+            
+            const bindButton = document.getElementById("youtube-bind-broadcast");
+
+            if (!broadcastId) {
+                currentBroadcastStatus = null;
+            
+                document.getElementById("youtube-broadcast-status").textContent =
+                    "None selected";
+            
+                document.getElementById("youtube-broadcast-pip").className =
+                    "status-pip status-off";
+            
+                updateYoutubeLiveButton();
+                return;
+            }
+        
+            try {
+                const response = await fetch(
+                    `/youtube/broadcasts/${encodeURIComponent(broadcastId)}`
+                );
+            
+                const data = await response.json();
+            
+                if (!response.ok) {
+                    throw new Error(data.error || "Unable to get broadcast status");
+                }
+            
+                currentBroadcastStatus = data.broadcast;
+            
+                document.getElementById("youtube-broadcast-status").textContent =
+                    data.broadcast.life_cycle_status;
+            
+                bindButton.disabled = ["live","liveStarting","complete","ready"].includes(data.broadcast.life_cycle_status)
+                bindButton.textContent = ["created"].includes(data.broadcast.life_cycle_status) ? "Bind Stream to Broadcast" : bindButton.textContent
+
+                updateBroadcastPip(data.broadcast.life_cycle_status);
+                updateYoutubeLiveButton();
+            
+            } catch (err) {
+                console.error("Broadcast status:", err);
+            }
+        }
+
+
+        function updateBroadcastPip(status) {
+            const pip = document.getElementById("youtube-broadcast-pip");
+        
+            const classes = {
+                created: "status-warning",
+                ready: "status-good",
+                testing: "status-warning",
+                live: "status-good",
+                complete: "status-off",
+            };
+        
+            pip.className =
+                "status-pip " + (classes[status] || "status-off");
+        }
+
+
+        function updateYoutubeLiveButton() {
+            const button = document.getElementById("youtube-live");
+        
+            const streamReady =
+                currentYoutubeStream?.stream_status === "active" &&
+                ["good", "ok", "bad"].includes(currentYoutubeStream?.health_status);
+        
+            const broadcastReady =
+                currentBroadcastStatus?.life_cycle_status === "ready";
+        
+            const broadcastLive =
+                currentBroadcastStatus?.life_cycle_status === "live";
+        
+            if (broadcastLive) {
+                button.disabled = false;
+                button.textContent = "END STREAM";
+            } else if (streamReady && broadcastReady) {
+                button.disabled = false;
+                button.textContent = "GO LIVE";
+            } else {
+                button.disabled = true;
+                button.textContent = "GO LIVE";
+            }
+        }        
+
+        loadYoutube();
+        loadSelectedBroadcastStatus();
+
+        setInterval(loadYoutubeStreamStatus, 3000);
+        setInterval(loadSelectedBroadcastStatus, 3000);
+        </script>
+        <script>
+            let currentBoxScore = null;
+            async function updateBoxScore() {
+                const competition = document.getElementById("competition").value.trim();
+                const gameId = document.getElementById("game_id").value.trim();
+
+                if (!competition || !gameId) {
+                    currentBoxScore = null;
+                    return;
+                }
+            
+                try {
+                    const response = await fetch(
+                        `/api/box-score?competition=${encodeURIComponent(competition)}&game_id=${encodeURIComponent(gameId)}`
+                    );
+                
+                    const data = await response.json();
+                
+                    if (!response.ok) {
+                        throw new Error(data.error || "Unable to load box score");
+                    }
+                
+                    currentBoxScore = data.box_score;
+                    updateGameDetails();
+                    // We'll do something useful with this next.
+                } catch (err) {
+                    currentBoxScore = null;
+                    console.error("Box score error:", err);
+                }
+            }
+
+            async function createYoutubeBroadcast() {
+
+                let title = "Richmond Baseball Club Livestream"
+                let text = ""
+
+                if (currentBoxScore && currentBoxScore.found) {
+                    title = `${currentBoxScore.away_name} @ ${currentBoxScore.home_name}`
+                    text = 
+                    `${title}\n` +
+                    `${currentBoxScore.start_time}\n` +
+                    `${currentBoxScore.location}`
+                } else {
+                    text = title
+                }
+
+                const confirmed = confirm(
+                    `Create YouTube broadcast?\n\n` +
+                    `${text}\n\n` +
+                    `The broadcast will be created as Public.`
+                );
+
+                if (!confirmed) {
+                    return;
+                }
+            
+                const button = document.getElementById("youtube-create-broadcast");
+            
+                button.disabled = true;
+                button.textContent = "Creating...";
+            
+                try {
+                    const response = await fetch("/youtube/broadcasts", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(currentBoxScore && currentBoxScore.found ? currentBoxScore : { title })
+                    });
+                
+                    const data = await response.json();
+                
+                    if (!response.ok) {
+                        throw new Error(data.error || "Unable to create broadcast");
+                    }
+                
+                    console.log("Created broadcast:", data.broadcast);
+                
+                    button.textContent = "Created";
+                    await loadYoutubeBroadcasts(data.broadcast.id);
+                
+                } catch (err) {
+                    console.error(err);
+                    alert(err.message);
+                    button.textContent = "Create new broadcast";
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            async function loadYoutubeBroadcasts(selectedId = null) {
+                const select = document.getElementById("youtube-broadcast-select");
+            
+                try {
+                    const response = await fetch("/youtube/broadcasts");
+                    const data = await response.json();
+                
+                    if (!response.ok) {
+                        throw new Error(data.error || "Unable to load broadcasts");
+                    }
+                
+                    select.innerHTML = '<option value="">Select broadcast...</option>';
+                
+                    for (const broadcast of data.broadcasts || []) {
+                        const option = document.createElement("option");
+                    
+                        option.value = broadcast.id;
+                        option.textContent = broadcast.title;
+                    
+                        select.appendChild(option);
+                    }
+                
+                    // Select a specific broadcast if requested
+                    if (selectedId) {
+                        select.value = selectedId;
+                    }
+                
+                } catch (err) {
+                    console.error("Unable to load YouTube broadcasts:", err);
+                }
+            }   
+            
+            async function bindSelectedYoutubeBroadcast() {
+                const select = document.getElementById("youtube-broadcast-select");
+                const broadcastId = select.value;
+            
+                if (!broadcastId) {
+                    document.getElementById("youtube-broadcast-status").textContent =
+                        "None selected";
+                
+                    document.getElementById("youtube-broadcast-pip").className =
+                        "status-pip status-off";
+                
+                    return;
+                }
+
+                btn = document.getElementById("youtube-bind-broadcast");
+                btn.textContent = "Binding..."
+                btn.disabled = true
+                
+                try {
+                    const streamsResponse = await fetch("/youtube/streams");
+                    const streamsData = await streamsResponse.json();
+                
+                    if (!streamsResponse.ok) {
+                        throw new Error("Unable to load YouTube streams");
+                    }
+                
+                    const stream = streamsData.streams?.find(
+                        stream => stream.title === "RTMP"
+                    );
+                
+                    if (!stream) {
+                        throw new Error("RTMP stream not found");
+                    }
+                
+
+
+                    const response = await fetch(
+                        `/youtube/broadcasts/${encodeURIComponent(broadcastId)}/bind`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                stream_id: stream.id
+                            })
+                        }
+                    );
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        btn.textContent = "Failed"
+                        throw new Error(data.error || "Unable to bind broadcast");
+                    }
+                
+                    btn.textContent = "Bound"
+                    document.getElementById("youtube-broadcast-status").textContent =
+                        data.broadcast.status.lifeCycleStatus || "Bound";
+                
+                    document.getElementById("youtube-broadcast-pip").className =
+                        "status-pip status-good";
+                
+                    console.log("Bound broadcast:", data.broadcast);
+
+                    await loadSelectedBroadcastStatus();
+                
+                } catch (err) {
+                    console.error(err);
+                
+                    document.getElementById("youtube-broadcast-status").textContent =
+                        "Bind failed";
+                
+                    document.getElementById("youtube-broadcast-pip").className =
+                        "status-pip status-error";
+                
+                    document.getElementById("youtube-errors").textContent =
+                        err.message;
+                }
+            }            
+
+            async function handleYoutubeLiveButton() {
+                const select = document.getElementById("youtube-broadcast-select");
+                const broadcastId = select.value;
+                        
+                if (!broadcastId) {
+                    alert("Select a broadcast first");
+                    return;
+                }
+            
+                const isLive =
+                    currentBroadcastStatus?.life_cycle_status === "live";
+            
+                const title =
+                    select.options[select.selectedIndex].text;
+            
+                const confirmed = confirm(
+                    isLive
+                        ? `End YouTube stream?\n\n${title}`
+                        : `Go LIVE on YouTube?\n\n${title}`
+                );
+            
+                if (!confirmed) {
+                    return;
+                }
+            
+                const button = document.getElementById("youtube-live");
+            
+                button.disabled = true;
+                button.textContent = isLive ? "Ending..." : "Starting...";
+            
+                try {
+                    const endpoint = isLive
+                        ? `/youtube/broadcasts/${encodeURIComponent(broadcastId)}/end`
+                        : `/youtube/broadcasts/${encodeURIComponent(broadcastId)}/live`;
+                
+                    const response = await fetch(endpoint, {
+                        method: "POST"
+                    });
+                
+                    const data = await response.json();
+                
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            (isLive
+                                ? "Unable to end broadcast"
+                                : "Unable to start broadcast")
+                        );
+                    }
+                
+                    await loadSelectedBroadcastStatus();
+                
+                } catch (err) {
+                    console.error(err);
+                
+                    document.getElementById("youtube-errors").textContent =
+                        err.message;
+                
+                    alert(err.message);
+                
+                    updateYoutubeLiveButton();
+                }
+            }
+            document
+                .getElementById("youtube-live")
+                .addEventListener("click", handleYoutubeLiveButton);
+            document
+                .getElementById("youtube-create-broadcast")
+                .addEventListener("click", createYoutubeBroadcast);
+            document
+                .getElementById("youtube-bind-broadcast")
+                .addEventListener("click", bindSelectedYoutubeBroadcast);
+            loadYoutubeBroadcasts();
+        </script>
+        <script>
+            function updateGameDetails() {
+                if (!currentBoxScore) {
+                    document.getElementById("game-away-name").textContent = "—";
+                    document.getElementById("game-home-name").textContent = "—";
+                    document.getElementById("game-start-time").textContent = "—";
+                    document.getElementById("game-location").textContent = "—";
+                    return;
+                }
+            
+                document.getElementById("game-away-name").textContent =
+                    currentBoxScore.away_name;
+            
+                document.getElementById("game-home-name").textContent =
+                    currentBoxScore.home_name;
+            
+                document.getElementById("game-start-time").textContent =
+                    currentBoxScore.start_time;
+            
+                document.getElementById("game-location").textContent =
+                    currentBoxScore.location;
+            }
+            function positionGamePanel() {
+                const panel = document.getElementById("game-side-panel");
+                const gameId = document.getElementById("game-id-section");
+                const desktop = document.getElementById("game-panel-desktop");
+
+                if (window.innerWidth <= 700) {
+                    gameId.insertAdjacentElement("afterend", panel);
+                } else {
+                    desktop.appendChild(panel);
+                }
+            }
+
+            document
+                .getElementById("competition")
+                .addEventListener("change", updateBoxScore);
+            document
+                .getElementById("game_id")
+                .addEventListener("change", updateBoxScore);
+
+            updateBoxScore();
+            positionGamePanel();
+            window.addEventListener("resize", positionGamePanel);
+
+            const generalForm = document.getElementById("general-form");
+
+            generalForm.addEventListener("input", markSettingsUnsaved);
+
+            function markSettingsUnsaved() {
+                const status = document.getElementById("save-status");
+                const pip = status.querySelector(".status-pip");
+
+                status.className = "save-status unsaved";
+                pip.className = "status-pip status-warning";
+
+                document.getElementById("save-status-text").textContent =
+                    "Unsaved changes";
+            }
+            function refreshGraphicsPreview() {
+                const image = document.getElementById("graphics-preview-image");
+                image.src = `/api/preview?t=${Date.now()}`;
+            }
+            refreshGraphicsPreview();
+            setInterval(refreshGraphicsPreview, 2000);            
+
+        </script>
 </body>
 </html>

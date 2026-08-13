@@ -1,12 +1,12 @@
 {
-    "id": 206473,
-    "competition": "bbf_div_4",
+    "id": 206843,
+    "competition": "bbf_div_3",
     "mode": "game",
     "home": {
-        "colour": "FFFFFF"
+        "colour": "FF0000"
     },
     "away": {
-        "colour": "000000"
+        "colour": "FFFFFF"
     },
     "play_lock": 0,
     "srt": {

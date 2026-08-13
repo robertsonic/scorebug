@@ -332,10 +332,14 @@ class FrameEngine:
             },
             "lineup": {
                 "away_colour": RectElement(
-                    pos=(90, 53, 958, 1021), fill="away_colour", rounded=True
+                    pos=(90, 60, 958, 1021),
+                    fill="away_colour",
+                    rounded=True,
                 ),
                 "home_colour": RectElement(
-                    pos=(958, 53, 1824, 1021), fill="home_colour", rounded=True
+                    pos=(958, 60, 1824, 1021),
+                    fill="home_colour",
+                    rounded=True,
                 ),
                 "away_name": TextElement(
                     pos=(490, 110),
@@ -355,7 +359,7 @@ class FrameEngine:
                 ),
                 "status": TextElement(
                     pos=(960, 995),
-                    font=self.font_medium,
+                    font=self.font_small,
                     bbox=(500, 965, 1420, 1025),
                     anchor="mm",
                     align="center",
@@ -534,10 +538,20 @@ class FrameEngine:
 
                     if isinstance(elem, RectElement):
 
-                        draw.rectangle(elem.pos, fill=fill)
+                        draw.rectangle(
+                            elem.pos,
+                            fill=fill,
+                            width=elem.stroke_width,
+                            outline=elem.stroke_fill,
+                        )
 
                     if isinstance(elem, PolyElement):
-                        draw.polygon(elem.points, fill=fill)
+                        draw.polygon(
+                            elem.points,
+                            fill=fill,
+                            width=elem.stroke_width,
+                            outline=elem.stroke_fill,
+                        )
 
                 image = ImageChops.multiply(image, team_colours)
 
@@ -555,12 +569,28 @@ class FrameEngine:
 
                     if isinstance(elem, RectElement):
                         if elem.rounded:
-                            draw.rounded_rectangle(elem.pos, radius=10, fill=fill)
+                            draw.rounded_rectangle(
+                                elem.pos,
+                                radius=10,
+                                fill=fill,
+                                width=elem.stroke_width,
+                                outline=elem.stroke_fill,
+                            )
                         else:
-                            draw.rectangle(elem.pos, fill=fill)
+                            draw.rectangle(
+                                elem.pos,
+                                fill=fill,
+                                width=elem.stroke_width,
+                                outline=elem.stroke_fill,
+                            )
 
                     if isinstance(elem, PolyElement):
-                        draw.polygon(elem.pos, fill=fill)
+                        draw.polygon(
+                            elem.pos,
+                            fill=fill,
+                            width=elem.stroke_width,
+                            outline=elem.stroke_fill,
+                        )
 
                 image = ImageChops.multiply(image, team_colours)
                 draw = ImageDraw.Draw(image)
@@ -579,15 +609,39 @@ class FrameEngine:
 
                     lineup = self.latest_elements.get(e, [])
                     for y in range(len(lineup)):
+
+                        left_x = 99
+                        right_x = 950
+                        top_y = 212
+                        bottom_y = 260
+
                         if y == 9:
                             continue
                         elif y < 9:
                             line = f"{lineup[y].get("order","#")} - {lineup[y].get("pos","XX")} - {lineup[y].get("name","LASTNAME Firstname")} - {lineup[y].get("stats","(.### PA: #)")}"
                         elif y == 10:
+                            top_y -= 3
+                            bottom_y -= 3
                             line = f"P - {lineup[y].get("name","LASTNAME Firstname")} - {lineup[y].get("stats","(ER: ## - BB: ## - K: ##)")}"
 
+                        draw.rounded_rectangle(
+                            [
+                                left_x + (873 * x),
+                                top_y + (70 * y),
+                                right_x + (873 * x),
+                                bottom_y + (70 * y),
+                            ],
+                            fill=None,
+                            radius=10,
+                            outline="white",
+                            width=2,
+                        )
+
                         draw.text(
-                            (112 + (870 * x), 235 + (70 * y)),
+                            (
+                                left_x + 13 + (871 * x),
+                                top_y + ((bottom_y - top_y) // 2) + (70 * y),
+                            ),
                             font=self.lineup_small,
                             anchor="lm",
                             align="left",
@@ -690,7 +744,9 @@ class FrameEngine:
 
         self.state_changed_ns = time.perf_counter_ns()
 
-    def render_scene(self, now_ns) -> dict[str, Dirty]:
+    def render_scene(self, now_ns) -> tuple[dict[str, Dirty], bool]:
+
+        save_png = False
 
         if self.template is None:
             self.template = self._load_template()
@@ -698,6 +754,9 @@ class FrameEngine:
 
         elements = copy.deepcopy(self.latest_elements)
         self.latest_elements = {}
+
+        if elements:
+            save_png = True
 
         dirty: dict[str, Dirty] = {}
 
@@ -949,150 +1008,7 @@ class FrameEngine:
                 f"saving_pngs={(t3-t2)/1e6:.1f} "
             )
 
-        return dirty
-
-    def render_lineup_sheet(self, now_ns: int) -> Image.Image:
-
-        state = self.state
-        if self.lineup_render is not None:
-            return self.lineup_render
-
-        template = Image.open("lineup.png").convert("RGBA")
-
-        if template.size != (self.config.width, self.config.height):
-            template = template.resize((self.config.width, self.config.height))
-
-        image = Image.new("RGBA", (template.width, template.height), "white")
-
-        draw = ImageDraw.Draw(image)
-
-        if True:
-            away_colour = state.get("away_colour", "FFFFFF")
-            home_colour = state.get("home_colour", "000000")
-            away = state.get("away_lineup", [])
-            home = state.get("home_lineup", [])
-
-            draw.rounded_rectangle(
-                (270, 180, 1650, 950), radius=25, fill="#111", outline="#FFF", width=2
-            )
-            draw.rectangle((272, 200, 960, 260), fill=f"#{away_colour}")
-            draw.rectangle((960, 200, 1648, 260), fill=f"#{home_colour}")
-            draw.text(
-                (616, 230),
-                str.upper(state.get("away_name", "AWAY")),
-                fill="white",
-                font=self.lineup_medium,
-                anchor="mm",
-                stroke_fill="#000",
-                stroke_width=1,
-            )
-            draw.text(
-                (1304, 230),
-                str.upper(state.get("home_name", "HOME")),
-                fill="white",
-                font=self.lineup_medium,
-                anchor="mm",
-                stroke_fill="#000",
-                stroke_width=1,
-            )
-
-            for x in (290, 980):
-                draw.text(
-                    (x, 285), "#", fill="#CCCCCC", font=self.lineup_small, anchor="lm"
-                )
-                draw.text(
-                    (x + 50, 285),
-                    "POS",
-                    fill="#CCCCCC",
-                    font=self.lineup_small,
-                    anchor="lm",
-                )
-                draw.text(
-                    (x + 130, 285),
-                    "PLAYER",
-                    fill="#CCCCCC",
-                    font=self.lineup_small,
-                    anchor="lm",
-                )
-
-            self._draw_lineup_rows(draw, away, 280, 290, 340, 420, away_colour)
-            self._draw_lineup_rows(draw, home, 970, 980, 1030, 1100, home_colour)
-
-        self._draw_common_overlays(template)
-        self.lineup_render = ImageChops.multiply(template, image)
-
-        return self.lineup_render
-
-    def _draw_lineup_rows(
-        self,
-        draw: ImageDraw.ImageDraw,
-        players: list[dict[str, Any]],
-        box_x: int,
-        number_x: int,
-        pos_x: int,
-        name_x: int,
-        colour: str,
-    ) -> None:
-        start_y = 330
-        row_gap = 55
-        for i, player in enumerate(players[:11]):
-            if not player:
-                continue
-            y = start_y + i * row_gap
-            draw.rounded_rectangle(
-                (box_x, y - 20, box_x + 670, y + 20),
-                fill=f"#{colour}CC",
-                outline=f"#{colour}",
-                width=1,
-                radius=5,
-            )
-            if player.get("is_pitcher"):
-                draw.text(
-                    (number_x, y),
-                    "Pitcher:",
-                    fill="white",
-                    font=self.lineup_small,
-                    anchor="lm",
-                    stroke_fill="#000",
-                    stroke_width=1,
-                )
-                draw.text(
-                    (name_x, y),
-                    player.get("display", ""),
-                    fill="white",
-                    font=self.lineup_small,
-                    anchor="lm",
-                    stroke_fill="#000",
-                    stroke_width=1,
-                )
-            else:
-                draw.text(
-                    (number_x, y),
-                    str(player.get("order", "")),
-                    fill="white",
-                    font=self.lineup_small,
-                    anchor="lm",
-                    stroke_fill="#000",
-                    stroke_width=1,
-                )
-                draw.text(
-                    (pos_x, y),
-                    str(player.get("pos", "")),
-                    fill="white",
-                    font=self.lineup_small,
-                    anchor="lm",
-                    stroke_fill="#000",
-                    stroke_width=1,
-                )
-                draw.text(
-                    (name_x, y),
-                    player.get("display", ""),
-                    fill="white",
-                    font=self.lineup_small,
-                    anchor="lm",
-                    stroke_fill="#000",
-                    stroke_width=1,
-                )
+        return dirty, save_png
 
     def render_blank(self, now_ns: int) -> Image.Image:
         return Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
@@ -1287,10 +1203,12 @@ class FrameEngine:
 
                 if now_ns >= next_frame_ns:
                     frame_start_ns = time.perf_counter_ns()
-                    next_frame_ns = frame_start_ns + interval_ns
+
                     dirty_images = {}
+                    save_png = False
+
                     if self.state is not None:
-                        dirty_images = self.render_scene(now_ns)
+                        dirty_images, save_png = self.render_scene(now_ns)
                     render_end_ns = time.perf_counter_ns()
 
                     (
@@ -1298,6 +1216,18 @@ class FrameEngine:
                         framebuffer_ns,
                         ffmpeg_ns,
                     ) = self._write_outputs(dirty_images)
+
+                    if save_png:
+                        preview = Image.frombytes(
+                            "RGBA",
+                            (self.canvas_dimensions[0], self.canvas_dimensions[1]),
+                            bytes(self.canvas),
+                            "raw",
+                            "BGRA",
+                        )
+                        preview = preview.convert("RGB")
+                        preview.thumbnail((480, 270))
+                        preview.save("preview.jpg", quality=75)
 
                     frame_end_ns = time.perf_counter_ns()
 
@@ -1345,7 +1275,7 @@ class FrameEngine:
                             self.debug_ffmpeg_ns = 0
 
                     # next_frame_ns += interval_ns
-
+                    next_frame_ns = frame_start_ns + interval_ns
                     # if frame_end_ns - next_frame_ns > interval_ns:
                     #    next_frame_ns = frame_end_ns + interval_ns
 

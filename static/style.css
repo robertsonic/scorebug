@@ -1,55 +1,302 @@
 body {
-	font-family: Arial, sans-serif;
-	font-size: 22px;
-	padding: 20px;
-	background: #111;
-	color: white;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    padding: 16px;
+    margin: 0;
+    background: #111;
+    color: white;
 }
+
 h1 {
-	font-size: 34px;
+    font-size: 26px;
+    margin: 0 0 20px 0;
 }
+
+h2 {
+    font-size: 20px;
+    margin: 16px 0 8px;
+}
+
+h4 {
+    margin: 12px 0 6px;
+}
+
+/* form {
+    max-width: 900px;
+} */
+
 label {
-	display: block;
-	margin-top: 24px;
-	margin-bottom: 8px;
-	font-weight: bold;
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 5px;
+    font-weight: bold;
 }
-input {
-	width: 100%;
-	font-size: 24px;
-	padding: 14px;
-	box-sizing: border-box;
-	border-radius: 8px;
-	border: 1px solid #555;
+
+input,
+select {
+    width: 100%;
+    font-size: 16px;
+    padding: 9px 10px;
+    box-sizing: border-box;
+    border-radius: 5px;
+    border: 1px solid #555;
 }
+
 button {
-	font-size: 24px;
-	padding: 16px 22px;
-	margin: 6px 4px;
-	border-radius: 10px;
-	border: 2px solid #fff;
-	cursor: pointer;
+    font-size: 15px;
+    padding: 9px 14px;
+    margin: 4px 2px;
+    border-radius: 6px;
+    border: 1px solid #fff;
+    cursor: pointer;
 }
+
+button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .save {
-	width: 100%;
-	margin-top: 32px;
-	padding: 22px;
-	background: #00aa44;
-	color: white;
-	font-weight: bold;
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    background: #00aa44;
+    color: white;
+    font-weight: bold;
 }
+
 .swatches {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
 }
+
 .swatch {
-	min-width: 120px;
-	color: white;
-	text-shadow: 1px 1px 2px black;
+    min-width: 90px;
+    color: white;
+    text-shadow: 1px 1px 2px black;
 }
+
 .white {
-	color: black;
-	text-shadow: none;
+    color: black;
+    text-shadow: none;
+}
+
+details {
+    margin-top: 20px !important;
+}
+
+summary {
+    font-size: 19px !important;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+fieldset {
+    margin-top: 14px;
+    padding: 12px 14px 14px;
+    border: 1px solid #555;
+    border-radius: 6px;
+}
+
+legend {
+    padding: 0 6px;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+pre {
+    font-size: 13px !important;
+    padding: 10px !important;
+    border-radius: 5px !important;
+    overflow-x: auto;
+}
+
+.srt-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.srt-actions button {
+    margin: 0;
+}
+
+#srt-status {
+    margin: 14px 0 8px;
+}
+
+
+/* Keep controls comfortable on small touch screens */
+@media (max-width: 600px) {
+    body {
+        padding: 12px;
+    }
+
+    h1 {
+        font-size: 22px;
+    }
+
+    button {
+        min-height: 40px;
+    }
+
+    .swatch {
+        min-width: 80px;
+        flex-grow: 1;
+    }
+
+    .srt-actions button {
+        flex-grow: 1;
+    }
+}
+
+/* Youtube */
+#youtube-panel {
+    margin-top: 18px;
+}
+
+.youtube-row,
+.youtube-actions,
+.youtube-status-grid {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.youtube-row {
+    justify-content: space-between;
+}
+
+.youtube-actions {
+    margin-top: 10px;
+}
+
+.youtube-status-grid {
+    margin: 14px 0;
+    gap: 24px;
+}
+
+.status-pip {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.status-off {
+    background: #777;
+}
+
+.status-good {
+    background: #00c853;
+}
+
+.status-warning {
+    background: #ffb300;
+}
+
+.status-error {
+    background: #e53935;
+}
+
+.status-working {
+    background: #2196f3;
+}
+
+.button-link {
+    display: inline-block;
+    color: black;
+    background: white;
+    text-decoration: none;
+    font-size: 15px;
+    padding: 9px 14px;
+    border-radius: 6px;
+    border: 1px solid white;
+}
+
+#youtube-live {
+    margin-top: 6px;
+}
+
+.youtube-broadcast-status {
+    margin-top: 10px;
+}
+
+#youtube-errors {
+    margin-top: 10px;
+}
+
+.control-layout {
+    display: grid;
+    grid-template-columns: minmax(500px, 900px) minmax(350px, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+#game-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.game-details-card,
+.preview-card {
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 14px;
+}
+
+.card-title {
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.game-matchup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+}
+
+.game-at {
+    color: #888;
+}
+
+.game-meta {
+    margin-top: 7px;
+    color: #bbb;
+    font-size: 14px;
+}
+
+#graphics-preview {
+    aspect-ratio: 16 / 9;
+    background: #050505;
+    border: 1px solid #333;
+    overflow: hidden;
+}
+
+#graphics-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+.save-status {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #aaa;
+}
+
+.save-status.unsaved {
+    color: #ffb300;
 }
