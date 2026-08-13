@@ -13,6 +13,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from ffmpeg_utils import build_stream_state
+from radar import run_radar
 from scorebug_frame_engine_v4 import run_frame_engine
 
 from utils import (
@@ -178,6 +179,7 @@ def calculate_elements(
 
     situation = payload.get("situation", {})
     linescore = payload.get("linescore", {})
+    platecount = payload.get("platecount", [])
 
     away_totals = linescore.get("awaytotals", {})
     home_totals = linescore.get("hometotals", {})
@@ -202,9 +204,12 @@ def calculate_elements(
     ).strip()
 
     status_text = payload.get("status", {}).get("text", "")
+    fixed_status = payload.get("status", {}).get("fixed_text", "")
 
-    if len(status_text) > 70:
-        status_text = status_text[: 70 - 3].rstrip() + "..."
+    if " lob" in status_text and " of the " in status_text.lower():
+        fixed_status = status_text
+        status_text = " ".join(str(platecount[1].get("label", "")).split("<br>"))
+        situation["inning_transition"] = True
 
     elements: dict[str, Any] = {
         "away_score": {"text": away_totals.get("R", 0)},
@@ -229,9 +234,7 @@ def calculate_elements(
         # "inning_bottom": {"data": False},
         "away_player": {"text": ""},
         "home_player": {"text": ""},
-        "status": {
-            "text": status_text,
-        },
+        "status": {"text": status_text},
         "clock": {"text": now.strftime("%H:%M %Z")},
     }
 
@@ -260,6 +263,10 @@ def calculate_elements(
         elements["inning_top"] = {"data": False}
         elements["inning_bottom"] = {"data": False}
         elements["outs"]["text"] = "FINAL"
+    elif situation.get("inning_transition", False):
+        elements["inning_top"] = {"data": False}
+        elements["inning_bottom"] = {"data": False}
+        elements["outs"]["text"] = ""
 
     changed_elements: set[str] = set()
 
@@ -273,9 +280,7 @@ def calculate_elements(
 
     if "status" in changed_elements:
 
-        elements_to_render["status"]["fixed_text"] = payload.get("status", {}).get(
-            "fixed_text", ""
-        )
+        elements_to_render["status"]["fixed_text"] = fixed_status
         elements_to_render["status"]["fade"] = payload.get("status", {}).get(
             "fade", True
         )
@@ -292,7 +297,7 @@ def main() -> None:
     game_details: dict[str, Any] | None = None
 
     radar_process: mp.Process | None = None
-    radar_updates: mp.Queue | None = None
+    radar_updates: mp.Queue = mp.Queue(maxsize=1)
     radar_stop_event = mp.Event()
 
     # Frame engine
@@ -316,6 +321,21 @@ def main() -> None:
 
     prev_frame_process_message: dict[str, Any] = {}
 
+    radar_process = mp.Process(
+        target=run_radar,
+        args=(
+            radar_updates,
+            radar_stop_event,
+            {
+                "group": "239.255.19.92",
+                "port": 1992,
+            },
+        ),
+        name="radar",
+    )
+
+    radar_process.start()
+
     next_config_poll: float = 0.0
     next_wbsc_poll: float = 0.0
 
@@ -338,8 +358,8 @@ def main() -> None:
     pitch_speed: int = 0
     status = {}
 
-    try:
-        while True:
+    while True:
+        try:
             now = time.monotonic()
             new_game = None
             message = {}
@@ -411,14 +431,18 @@ def main() -> None:
                     else:
                         latest_scene = "scorebug"
                         if radar.get("active", False):
-                            pitch_speed = random.choice(
-                                [45, 77, 90, 100, 32, 61]
-                            )  # get_pitch_speed()
+                            try:
+                                pitch_speed = radar_updates.get_nowait()
+                            except queue.Empty:
+                                pass
+                            # random.choice(
+                            #    [45, 77, 90, 100, 32, 61]
+                            # )  # get_pitch_speed()
 
                         batter, pitcher = get_batter_and_pitcher(wbsc_data)
                         b_line = batter_line(batter).strip()
                         if b_line:
-                            statuses.extend([f"Previous At Bats: {b_line}"] * 3)
+                            statuses.extend([f"Previous Appearances: {b_line}"] * 3)
 
                     status = {
                         "text": status_text,
@@ -465,20 +489,18 @@ def main() -> None:
 
             time.sleep(0.75)
 
-    except KeyboardInterrupt:
-        pass
+        except KeyboardInterrupt:
+            break
 
-    except Exception as e:
-        print(e)
-        pass
+        except Exception as e:
+            print(e)
 
-    finally:
-        frame_stop_event.set()
-        frame_process.join(timeout=3)
+    frame_stop_event.set()
+    frame_process.join(timeout=3)
 
-        if frame_process.is_alive():
-            frame_process.terminate()
-            frame_process.join()
+    if frame_process.is_alive():
+        frame_process.terminate()
+        frame_process.join()
 
 
 if __name__ == "__main__":

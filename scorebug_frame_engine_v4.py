@@ -84,6 +84,7 @@ class TextElement:
     stroke_width: int = 0
     stroke_fill: Colour = "black"
     visible: bool = True
+    text_limit: int = 0
 
 
 @dataclass(kw_only=True)
@@ -328,6 +329,7 @@ class FrameEngine:
                     bbox=(835, 1021, 1600, 1080),
                     anchor="lm",
                     fade=True,
+                    text_limit=70,
                 ),
             },
             "lineup": {
@@ -930,9 +932,14 @@ class FrameEngine:
                             )
                         if anchor[1] == "t" or anchor[1] == "a":
                             pos = (pos[0], elem.pos[1] - bbox[1])
+
+                    text = str(elements[k]["text"])
+                    if elem.text_limit and len(text) > elem.text_limit:
+                        text = text[: elem.text_limit - 3].rstrip() + "..."
+
                     draw.text(
                         pos,
-                        text=str(elements[k]["text"]),
+                        text=text,
                         fill=fill,
                         stroke_fill=stroke_fill,
                         anchor=getattr(elem, "anchor", None),
