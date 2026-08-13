@@ -134,8 +134,13 @@ def oauth_callback():
     #     _external=True,
     # )
 
+    authorization_response = request.url.replace(
+        "http://scorebug.richmondbaseball.co.uk",
+        "https://scorebug.richmondbaseball.co.uk",
+    )
+    
     flow.fetch_token(
-        authorization_response=request.url,
+        authorization_response=authorization_response,
     )
 
     credentials = flow.credentials
