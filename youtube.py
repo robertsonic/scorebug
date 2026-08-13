@@ -80,6 +80,11 @@ def build_broadcast_body(box_score: dict[str, Any]) -> dict[str, Any]:
         },
     }
 
+def get_redirect_uri():
+    if request.host.startswith("localhost") or request.host.startswith("127.0.0.1"):
+        return "http://localhost:8080/youtube/oauth/callback"
+
+    return "https://scorebug.richmondbaseball.co.uk/youtube/oauth/callback"
 
 @youtube_bp.get("/login")
 def login():
@@ -87,10 +92,11 @@ def login():
         CLIENT_SECRETS_FILE, scopes=SCOPES, autogenerate_code_verifier=True
     )
 
-    flow.redirect_uri = url_for(
-        "youtube.oauth_callback",
-        _external=True,
-    )
+    flow.redirect_uri = get_redirect_uri()
+    # flow.redirect_uri = url_for(
+    #     "youtube.oauth_callback",
+    #     _external=True,
+    # )
 
     authorization_url, state = flow.authorization_url(
         access_type="offline",
@@ -122,10 +128,11 @@ def oauth_callback():
         code_verifier=session.get("youtube_code_verifier"),
     )
 
-    flow.redirect_uri = url_for(
-        "youtube.oauth_callback",
-        _external=True,
-    )
+    flow.redirect_uri = get_redirect_uri()
+    # flow.redirect_uri = url_for(
+    #     "youtube.oauth_callback",
+    #     _external=True,
+    # )
 
     flow.fetch_token(
         authorization_response=request.url,
