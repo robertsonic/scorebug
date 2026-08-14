@@ -1071,8 +1071,14 @@
         <script>
             function signalBars(level) {
                 if (level == null) return "—";
-
-                return "▂▄▆▇█".slice(0, level);
+                        
+                return `
+                    <span class="signal-bars">
+                        ${[1,2,3,4,5].map(i =>
+                            `<i class="${i <= level ? 'on' : ''}"></i>`
+                        ).join("")}
+                    </span>
+                `;
             }
             async function loadNetworks() {
                 const box = document.getElementById("network-summary");

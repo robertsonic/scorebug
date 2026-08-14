@@ -318,3 +318,27 @@ pre {
     margin-top: 3px;
     font-size: 0.9em;
 }
+
+.signal-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+}
+
+.signal-bars i {
+    width: 3px;
+    background: #aaa;
+    opacity: 0.25;
+}
+
+.signal-bars i.on {
+    background: #28a745;
+    opacity: 1;
+}
+
+.signal-bars i:nth-child(1) { height: 4px; }
+.signal-bars i:nth-child(2) { height: 6px; }
+.signal-bars i:nth-child(3) { height: 8px; }
+.signal-bars i:nth-child(4) { height: 11px; }
+.signal-bars i:nth-child(5) { height: 14px; }
