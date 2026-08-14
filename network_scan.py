@@ -18,7 +18,7 @@ TP_LINK_PASSWORD = os.getenv("TPLINK_PASSWORD")
 
 SYSTEM = platform.system().lower()
 
-HTTP_TIMEOUT = 2
+HTTP_TIMEOUT = 1
 
 
 def run_command(command):
@@ -179,14 +179,14 @@ def probe_zte(gateway):
     except Exception:
         return None
 
-    if not data.get("signalbar"):
-        return None
+    # if not data.get("signalbar"):
+    #     return None
 
     return {
         "manufacturer": "ZTE",
         "network_type": data.get("network_type") or None,
         "network_provider": data.get("network_provider") or None,
-        "signal_bars": to_int(data.get("signalbar")),
+        "signal_bars": to_int(data.get("signalbar")) or None,
         "rssi_dbm": to_float(data.get("lte_rssi") or data.get("rssi")),
         "rsrp_dbm": to_float(data.get("lte_rsrp")),
         "rsrq_db": to_float(data.get("lte_rsrq")),
@@ -207,7 +207,8 @@ def probe_tplink(gateway):
         router = TplinkRouterProvider.get_client(
             f"http://{gateway}",
             TP_LINK_PASSWORD,
-            TP_LINK_USERNAME
+            TP_LINK_USERNAME,
+            timeout=HTTP_TIMEOUT
         )
 
         router.authorize()
