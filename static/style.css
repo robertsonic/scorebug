@@ -300,3 +300,21 @@ pre {
 .save-status.unsaved {
     color: #ffb300;
 }
+
+.network-card {
+    margin-bottom: 16px;
+}
+
+.network-device {
+    padding: 8px 0;
+    border-bottom: 1px solid #ccc;
+}
+
+.network-device:last-child {
+    border-bottom: none;
+}
+
+.network-device div {
+    margin-top: 3px;
+    font-size: 0.9em;
+}

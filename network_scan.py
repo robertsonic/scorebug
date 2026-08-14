@@ -4,6 +4,7 @@ import platform
 import re
 import socket
 import subprocess
+import threading
 
 import psutil
 import requests
@@ -18,7 +19,12 @@ TP_LINK_PASSWORD = os.getenv("TPLINK_PASSWORD")
 
 SYSTEM = platform.system().lower()
 
-HTTP_TIMEOUT = 2
+HTTP_TIMEOUT = 1
+
+# TP-Link clients are cached for the lifetime of this module/process so that
+# repeated calls to scan_networks() do not log in to the router every time.
+_TPLINK_ROUTERS = {}
+_TPLINK_LOCK = threading.Lock()
 
 
 def run_command(command):
@@ -179,14 +185,23 @@ def probe_zte(gateway):
     except Exception:
         return None
 
-    if not data.get("signalbar"):
+    useful_fields = [
+        "signalbar",
+        "network_type",
+        "lte_rssi",
+        "lte_rsrp",
+        "lte_rsrq",
+        "lte_snr",
+    ]
+
+    if not any(data.get(field) not in (None, "") for field in useful_fields):
         return None
 
     return {
         "manufacturer": "ZTE",
         "network_type": data.get("network_type") or None,
         "network_provider": data.get("network_provider") or None,
-        "signal_bars": to_int(data.get("signalbar")),
+        "signal_bars": to_int(data.get("signalbar")) or None,
         "rssi_dbm": to_float(data.get("lte_rssi") or data.get("rssi")),
         "rsrp_dbm": to_float(data.get("lte_rsrp")),
         "rsrq_db": to_float(data.get("lte_rsrq")),
@@ -196,56 +211,90 @@ def probe_zte(gateway):
     }
 
 
+def get_tplink_router(gateway):
+    """
+    Return a cached, authorised TP-Link client for this gateway.
+
+    Because network.py/network_scan.py is imported once by the web-control
+    process, the cached client persists between calls to scan_networks().
+    """
+
+    with _TPLINK_LOCK:
+        router = _TPLINK_ROUTERS.get(gateway)
+
+        if router is not None:
+            return router
+
+        router = TplinkRouterProvider.get_client(
+            f"http://{gateway}",
+            TP_LINK_PASSWORD,
+            TP_LINK_USERNAME,
+            timeout=HTTP_TIMEOUT
+        )
+
+        router.authorize()
+        _TPLINK_ROUTERS[gateway] = router
+
+        return router
+
+
+def discard_tplink_router(gateway):
+    """
+    Remove a cached TP-Link client.
+
+    Used when the router session has expired or the router has rebooted.
+    The next request will create and authorise a fresh client.
+    """
+
+    with _TPLINK_LOCK:
+        router = _TPLINK_ROUTERS.pop(gateway, None)
+
+    if router is not None:
+        try:
+            router.logout()
+        except Exception:
+            pass
+
+
 def probe_tplink(gateway):
 
     if not TP_LINK_PASSWORD:
         return None
 
-    router = None
-
-    try:
-        router = TplinkRouterProvider.get_client(
-            f"http://{gateway}",
-            TP_LINK_PASSWORD,
-            TP_LINK_USERNAME
-        )
-
-        router.authorize()
-
+    # First attempt reuses the cached session. If that session has expired,
+    # discard it and retry once with a fresh login.
+    for attempt in range(2):
         try:
+            router = get_tplink_router(gateway)
             lte = router.get_lte_status()
+
+            if not lte:
+                return None
+
+            raw = object_to_dict(lte)
+
+            return {
+                "manufacturer": "TP-Link",
+                "network_type": raw.get("network_type"),
+                "network_provider": raw.get("isp_name"),
+                "signal_bars": to_int(raw.get("sig_level")),
+                "rssi_dbm": None,
+                "rsrp_dbm": to_float(raw.get("rsrp")),
+                "rsrq_db": to_float(raw.get("rsrq")),
+                "snr_db": to_float(raw.get("snr")),
+                "cell_id": None,
+                "rx_speed": to_int(raw.get("cur_rx_speed")),
+                "tx_speed": to_int(raw.get("cur_tx_speed")),
+                "raw": raw
+            }
+
         except Exception:
-            lte = None
+            discard_tplink_router(gateway)
 
-        if not lte:
-            return None
+            if attempt == 1:
+                return None
 
-        raw = object_to_dict(lte)
-
-        return {
-            "manufacturer": "TP-Link",
-            "network_type": raw.get("network_type"),
-            "network_provider": raw.get("isp_name"),
-            "signal_bars": to_int(raw.get("sig_level")),
-            "rssi_dbm": None,
-            "rsrp_dbm": to_float(raw.get("rsrp")),
-            "rsrq_db": to_float(raw.get("rsrq")),
-            "snr_db": to_float(raw.get("snr")),
-            "cell_id": None,
-            "rx_speed": to_int(raw.get("cur_rx_speed")),
-            "tx_speed": to_int(raw.get("cur_tx_speed")),
-            "raw": raw
-        }
-
-    except Exception:
-        return None
-
-    finally:
-        if router:
-            try:
-                router.logout()
-            except Exception:
-                pass
+    return None
 
 
 def probe_gateway(gateway):

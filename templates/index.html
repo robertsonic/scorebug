@@ -78,6 +78,12 @@
             <div id="game-panel-desktop">
                 <aside id="game-side-panel">
                     <br/>
+                    <div class="game-details-card network-card">
+                        <div class="card-title">Network</div>
+                        <div id="network-summary">
+                            Loading network status...
+                        </div>
+                    </div>
                     <div class="game-details-card">
                         <div class="card-title">Game</div>
                     
@@ -1061,6 +1067,62 @@
             refreshGraphicsPreview();
             setInterval(refreshGraphicsPreview, 2000);            
 
+        </script>
+        <script>
+            function signalBars(level) {
+                if (level == null) return "—";
+
+                return "▂▄▆▇█".slice(0, level);
+            }
+            async function loadNetworks() {
+                const box = document.getElementById("network-summary");
+            
+                try {
+                    const response = await fetch("/api/networks");
+                    const networks = await response.json();
+                
+                    box.innerHTML = networks.map(net => {
+                        const info = net.info || {};
+                    
+                        const signal = info.signal_bars != null
+                            ? `${info.signal_bars}/5`
+                            : "—";
+                    
+                        const radio = [
+                            info.rsrp_dbm != null ? `RSRP ${info.rsrp_dbm} dBm` : null,
+                            info.rsrq_db != null ? `RSRQ ${info.rsrq_db} dB` : null,
+                            info.snr_db != null ? `SNR ${info.snr_db} dB` : null
+                        ].filter(Boolean).join(" · ");
+                    
+                        return `
+                            <div class="network-device">
+                                <strong>
+                                    ${info.manufacturer || "Unknown"}
+                                    ${info.network_provider ? ` · ${info.network_provider}` : ""}
+                                </strong>
+                            
+                                <div>
+                                    ${net.interface} · ${net.interface_ip}
+                                </div>
+                            
+                                <div>
+                                    ${info.network_type || "Unknown network"}
+                                    ${signalBars(info.signal_bars)}
+                                </div>
+                            
+                                ${radio ? `<div>${radio}</div>` : ""}
+                            </div>
+                        `;
+                    }).join("");
+                
+                } catch (err) {
+                    console.error("Network status error:", err);
+                    box.textContent = "Unable to load network status";
+                }
+            }
+        
+            loadNetworks();
+            setInterval(loadNetworks, 5000);
         </script>
 </body>
 </html>
