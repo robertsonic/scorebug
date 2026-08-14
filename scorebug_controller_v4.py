@@ -206,7 +206,7 @@ def calculate_elements(
     status_text = payload.get("status", {}).get("text", "")
     fixed_status = payload.get("status", {}).get("fixed_text", "")
 
-    if " lob" in status_text and " of the " in status_text.lower():
+    if (" lob" in status_text and " of the " in status_text.lower()) or "inning over" in status_text.lower():
         fixed_status = status_text
         status_text = " ".join(str(platecount[1].get("label", "")).split("<br>"))
         situation["inning_transition"] = True
