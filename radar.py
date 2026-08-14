@@ -2,11 +2,15 @@ import socket
 import struct
 import time
 
+from network_scan import get_interface_ipv4
+
 GROUP = "239.255.19.92"
 PORT = 1992
 
 
 def run_radar(updates, stop_event, config):
+
+    interfaces = get_interface_ipv4()
 
     sock = socket.socket(
         socket.AF_INET,
@@ -22,17 +26,27 @@ def run_radar(updates, stop_event, config):
 
     sock.bind(("", config["port"]))
 
-    mreq = struct.pack(
-        "4s4s",
-        socket.inet_aton(config["group"]),
-        socket.inet_aton("0.0.0.0"),
-    )
+    for interface, ip in interfaces.items():
 
-    sock.setsockopt(
-        socket.IPPROTO_IP,
-        socket.IP_ADD_MEMBERSHIP,
-        mreq,
-    )
+        if not str(interface).lower().startswith("eth"):
+            continue
+
+        mreq = struct.pack(
+            "4s4s",
+            socket.inet_aton(config["group"]),
+            socket.inet_aton(ip),
+        )
+
+        sock.setsockopt(
+            socket.IPPROTO_IP,
+            socket.IP_ADD_MEMBERSHIP,
+            mreq,
+        )
+
+        print(
+            f"Joined {config['group']} on "
+            f"{interface} ({ip})"
+        )
 
     sock.settimeout(1.0)
 
@@ -40,8 +54,12 @@ def run_radar(updates, stop_event, config):
         while not stop_event.is_set():
             try:
                 data, addr = sock.recvfrom(1024)
+
                 print(addr, data.decode())
-                updates.put(int(data.decode()))
+
+                updates.put(
+                    int(data.decode())
+                )
 
             except socket.timeout:
                 continue

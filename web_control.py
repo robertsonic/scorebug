@@ -9,9 +9,10 @@ import re
 import subprocess
 import threading
 
+from network_scan import scan_networks
 from wbsc import get_box_score, get_schedule
 
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+#os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 app = Flask(__name__)
 
@@ -170,6 +171,9 @@ def preview():
         max_age=0,
     )
 
+@app.route("/api/networks")
+def get_networks():
+    return jsonify(scan_networks())
 
 @app.route("/api/network-status")
 def api_network_status():
