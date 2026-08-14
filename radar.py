@@ -55,13 +55,19 @@ def run_radar(updates, stop_event, config):
             try:
                 data, addr = sock.recvfrom(1024)
 
-                print(addr, data.decode())
+                decoded = data.decode()
+                value = int(decoded)
+             
+                print(addr, value, decoded)
+                
+                if value > 999 or value < 20:
+                    continue
 
                 updates.put(
-                    int(data.decode())
+                    value
                 )
 
-            except socket.timeout:
+            except:
                 continue
 
     except KeyboardInterrupt:
