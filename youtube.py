@@ -89,9 +89,7 @@ def get_redirect_uri():
 @youtube_bp.get("/login")
 def login():
     flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
-        scopes=SCOPES,
-        # autogenerate_code_verifier=True
+        CLIENT_SECRETS_FILE, scopes=SCOPES, autogenerate_code_verifier=True
     )
 
     flow.redirect_uri = get_redirect_uri()
@@ -107,7 +105,7 @@ def login():
     )
 
     session["youtube_oauth_state"] = state
-    # session["youtube_code_verifier"] = flow.code_verifier
+    session["youtube_code_verifier"] = flow.code_verifier
 
     return redirect(authorization_url)
 
@@ -127,7 +125,7 @@ def oauth_callback():
         CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         state=session.get("youtube_oauth_state"),
-        # code_verifier=session.get("youtube_code_verifier"),
+        code_verifier=session.get("youtube_code_verifier"),
     )
 
     flow.redirect_uri = get_redirect_uri()
