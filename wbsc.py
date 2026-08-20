@@ -133,7 +133,7 @@ def get_schedule(competition):
     return [
         game
         for game in games
-        if now
+        if now.replace(hour=0, minute=0, second=0, microsecond=0)
         <= datetime.strptime(
             game.get("start_date", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S"
         )
