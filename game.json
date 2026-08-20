@@ -8,7 +8,7 @@
     "away": {
         "colour": "FFFFFF"
     },
-    "play_lock": -1,
+    "play_lock": 0,
     "srt": {
         "live_requested": true,
         "url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",

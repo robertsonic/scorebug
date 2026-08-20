@@ -240,7 +240,7 @@ def calculate_elements(
 
     ps = payload.get("pitch_speed", 0)
     if ps:
-        elements["pitch_speed"] = {"text": f"{ps} MPH", "fade": True}
+        elements["pitch_speed"] = {"text": f"{ps} MPH"}
 
     elements = {**elements, **build_lineup_state(payload)}
 
@@ -386,6 +386,15 @@ def main() -> None:
                         render_debug,
                     ) = extract_config_data(game)
 
+            if radar.get("active", False):
+                try:
+                    pitch_speed = radar_updates.get_nowait()
+                except queue.Empty:
+                    pass
+                # random.choice(
+                #    [45, 77, 90, 100, 32, 61]
+                # )  # get_pitch_speed()
+
             if mode == "game":
 
                 if new_game is not None:
@@ -430,14 +439,6 @@ def main() -> None:
                         statuses = [status_text]
                     else:
                         latest_scene = "scorebug"
-                        if radar.get("active", False):
-                            try:
-                                pitch_speed = radar_updates.get_nowait()
-                            except queue.Empty:
-                                pass
-                            # random.choice(
-                            #    [45, 77, 90, 100, 32, 61]
-                            # )  # get_pitch_speed()
 
                         batter, pitcher = get_batter_and_pitcher(wbsc_data)
                         b_line = batter_line(batter).strip()
@@ -448,6 +449,8 @@ def main() -> None:
                         "text": status_text,
                         "fixed_text": random.choice(statuses),
                     }
+            elif mode == "practice":
+                latest_scene = "pitching"
 
             if scene != latest_scene:
                 message["command"] = "reload"
