@@ -355,6 +355,7 @@ def main() -> None:
     scene: str = "starting"
 
     wbsc_data: dict[str, Any] = {}
+    wbsc_timeout: float = 0.0
     pitch_speed: int = 0
     status = {}
 
@@ -397,8 +398,9 @@ def main() -> None:
 
             if mode == "game":
 
-                if new_game is not None:
-                    wbsc_data = get_box_score(game_id, competition)
+                if new_game is not None or (wbsc_timeout > 0 and now >= wbsc_timeout):
+                    wbsc_timeout = 0.0
+                    wbsc_data = {**wbsc_data, **get_box_score(game_id, competition)}
 
                 if now >= next_wbsc_poll or new_game is not None:
                     next_wbsc_poll = now + WBSC_POLL_INTERVAL
@@ -449,6 +451,10 @@ def main() -> None:
                         "text": status_text,
                         "fixed_text": random.choice(statuses),
                     }
+
+                if not wbsc_data.get("found", False) and not wbsc_timeout:
+                    wbsc_timeout = now + 30
+
             elif mode == "practice":
                 latest_scene = "pitching"
 

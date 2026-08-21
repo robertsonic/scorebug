@@ -18,7 +18,7 @@ comp_map = {
 def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
 
     game: dict[str, Any] = {}
-
+    found = False
     try:
         comp = comp_map[competition]
 
@@ -39,7 +39,6 @@ def get_box_score(game_id: str | int, competition: str) -> dict[str, Any]:
         found = True
     except:
         print("Failure to get Box Score with:", competition, game_id)
-        found = False
 
     return {
         "home_name": game.get("homelabel", "Home"),
@@ -64,9 +63,15 @@ def get_latest_play(game_id: str | int, latest_play: int) -> int:
 def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
     url = f"https://game.wbsc.org/gamedata/{game_id}/play{play_number}.json"
     print(url)
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    play = response.json()
+    found = False
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        play = response.json()
+        found = True
+    except:
+        print("Failure to get Play with:", game_id, play_number)
+
     return {
         "home_short": play.get("eventhome", "HME"),
         "away_short": play.get("eventaway", "AWY"),
@@ -74,6 +79,7 @@ def get_play(game_id: str | int, play_number: int) -> dict[str, Any]:
         "boxscore": play.get("boxscore", {}),
         "linescore": play.get("linescore", {}),
         "platecount": play.get("platecount", []),
+        "found": found,
     }
 
 
