@@ -1,6 +1,7 @@
 import socket
 import struct
 import time
+import math
 
 from network_scan import get_interface_ipv4
 
@@ -8,7 +9,20 @@ GROUP = "239.255.19.92"
 PORT = 1992
 
 
-def run_radar(updates, stop_event, config):
+def parse_radar(data):
+    try:
+        value = data.decode().strip()
+
+        # V = velocity, - = incoming, M = MPH
+        if not (value.startswith("V-") and value.endswith("M")):
+            return None
+
+        return math.floor(float(value[2:-1]))
+
+    except (UnicodeDecodeError, ValueError):
+        return None
+    
+def run_radar(updates = None, stop_event = None, config = { "port" : PORT, "group": GROUP}):
 
     interfaces = get_interface_ipv4()
 
@@ -48,18 +62,22 @@ def run_radar(updates, stop_event, config):
             f"{interface} ({ip})"
         )
 
-    sock.settimeout(1.0)
+    #sock.settimeout(1.0)
 
     try:
-        while not stop_event.is_set():
+        while stop_event is None or not stop_event.is_set():
             try:
                 data, addr = sock.recvfrom(1024)
 
-                print(addr, data.decode())
+                speed = parse_radar(data)
 
-                updates.put(
-                    int(data.decode())
-                )
+                
+                if updates is not None and speed is not None:
+                    updates.put(
+                        speed
+                    )
+                elif speed is not None:
+                    print(addr, speed)
 
             except socket.timeout:
                 continue
@@ -69,3 +87,8 @@ def run_radar(updates, stop_event, config):
 
     finally:
         sock.close()
+        
+if __name__ == "__main__":
+
+    print("hi")
+    run_radar()
