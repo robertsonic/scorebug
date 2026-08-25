@@ -17,7 +17,12 @@ def parse_radar(data):
         if not (value.startswith("V-") and value.endswith("M")):
             return None
 
-        return math.floor(float(value[2:-1]))
+        value = math.floor(float(value[2:-1]))
+        
+        if value > 999 or value < 20:
+            return None
+        
+        return value
 
     except (UnicodeDecodeError, ValueError):
         return None
@@ -79,7 +84,7 @@ def run_radar(updates = None, stop_event = None, config = { "port" : PORT, "grou
                 elif speed is not None:
                     print(addr, speed)
 
-            except socket.timeout:
+            except:
                 continue
 
     except KeyboardInterrupt:

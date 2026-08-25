@@ -330,8 +330,8 @@ def scan_networks():
 
         info = probe_gateway(gateway)
 
-        if not info:
-            continue
+        # if not info:
+        #    continue
 
         results.append({
             "interface": route["interface"],

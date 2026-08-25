@@ -279,6 +279,7 @@ class FrameEngine:
                     align="center",
                     bbox=(1750, 930, 1830, 950),
                     pos=(1790, 930),
+                    fade=True,
                 ),
                 "count": TextElement(
                     pos=(1790, 1000),
@@ -442,6 +443,25 @@ class FrameEngine:
                     ),
                 ),
             },
+            "pitching": {
+                "pitch_speed": TextElement(
+                    pos=(
+                        self.canvas_dimensions[0] - 50 - (300 // 2),
+                        self.canvas_dimensions[1] - 50 - (150 // 2),
+                    ),
+                    fill="black",
+                    align="center",
+                    anchor="mm",
+                    font=self.font_medium,
+                    bbox=(
+                        self.canvas_dimensions[0] - 50 - 300,
+                        self.canvas_dimensions[1] - 50 - 150,
+                        self.canvas_dimensions[0] - 50,
+                        self.canvas_dimensions[1] - 50,
+                    ),
+                    fade=False,
+                )
+            },
             "common": {
                 "clock": RectElement(
                     pos=(1800, 20, 1900, 80),
@@ -469,8 +489,8 @@ class FrameEngine:
                 return self.starting_render
 
             image = Image.open(path).convert("RGBA")
-            if image.size != (self.config.width, self.config.height):
-                image = image.resize((self.config.width, self.config.height))
+            if image.size != self.canvas_dimensions:
+                image = image.resize(self.canvas_dimensions)
 
             draw = ImageDraw.ImageDraw(image)
 
@@ -652,8 +672,26 @@ class FrameEngine:
                             stroke_fill="black",
                         )
                     x += 1
-            #         112, 236
-            # 305
+
+            elif self.scene == "pitching":
+
+                image = Image.new("RGBA", self.canvas_dimensions, MAGENTA)
+
+                draw = ImageDraw.Draw(image)
+
+                draw.rounded_rectangle(
+                    [
+                        self.canvas_dimensions[0] - 50 - 300,
+                        self.canvas_dimensions[1] - 50 - 150,
+                        self.canvas_dimensions[0] - 50,
+                        self.canvas_dimensions[1] - 50,
+                    ],
+                    radius=10,
+                    fill="white",
+                    outline="black",
+                    width=2,
+                )
+
             if self.competition_logo is not None:
                 image.alpha_composite(self.competition_logo, (15, 25))
 
@@ -662,14 +700,12 @@ class FrameEngine:
             return image
         except Exception as e:
             print(e)
-            return Image.new(
-                "RGBA", (self.config.width, self.config.height), (0, 0, 0, 0)
-            )
+            return Image.new("RGBA", self.canvas_dimensions, MAGENTA)
 
     def _load_imgfile_and_resize(self, path: str):
         image = Image.open(path).convert("RGBA")
-        if image.size != (self.config.width, self.config.height):
-            image = image.resize((self.config.width, self.config.height))
+        if image.size != self.canvas_dimensions:
+            image = image.resize(self.canvas_dimensions)
         return image
 
     def _consume_updates(self) -> None:
@@ -836,9 +872,8 @@ class FrameEngine:
                 except:
                     continue
 
-                if v.get("fade", False):
-                    self.faders[k] = copy.deepcopy(v)
-                    # print(v)
+                if v.get("fade", getattr(elem, "fade", False)):
+                    self.faders[k] = {**copy.deepcopy(v), "fade": True}
 
                 fill = getattr(elem, "fill", "white")
                 stroke_fill = getattr(elem, "stroke_fill", "black")
@@ -1018,7 +1053,7 @@ class FrameEngine:
         return dirty, save_png
 
     def render_blank(self, now_ns: int) -> Image.Image:
-        return Image.new("RGBA", (self.config.width, self.config.height), MAGENTA)
+        return Image.new("RGBA", self.canvas_dimensions, MAGENTA)
 
     def _draw_common_overlays(self, image: Image.Image) -> None:
 
@@ -1114,11 +1149,11 @@ class FrameEngine:
 
         for k, region in dirty.items():
             image = region.image
-            left, top, right, bottom = region.bbox
 
             if region.image is None or region.bbox is None:
                 continue
 
+            left, top, right, bottom = region.bbox
             if image.mode != "RGBA":
                 image = image.convert("RGBA")
 
@@ -1138,8 +1173,8 @@ class FrameEngine:
 
                 self.canvas[dst_start:dst_end] = raw_view[src_start:src_end]
 
-        # if image.size != (self.config.width, self.config.height):
-        #     image = image.resize((self.config.width, self.config.height))
+        # if image.size != self.canvas_dimensions:
+        #     image = image.resize(self.canvas_dimensions)
 
         # if image.mode != "RGBA":
         #     image = image.convert("RGBA")

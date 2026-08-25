@@ -138,7 +138,7 @@ def oauth_callback():
         "http://scorebug.richmondbaseball.co.uk",
         "https://scorebug.richmondbaseball.co.uk",
     )
-    
+
     flow.fetch_token(
         authorization_response=authorization_response,
     )

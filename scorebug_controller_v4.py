@@ -206,7 +206,7 @@ def calculate_elements(
     status_text = payload.get("status", {}).get("text", "")
     fixed_status = payload.get("status", {}).get("fixed_text", "")
 
-    if " lob" in status_text and " of the " in status_text.lower():
+    if (" lob" in status_text and " of the " in status_text.lower()) or "inning over" in status_text.lower():
         fixed_status = status_text
         status_text = " ".join(str(platecount[1].get("label", "")).split("<br>"))
         situation["inning_transition"] = True
@@ -240,7 +240,7 @@ def calculate_elements(
 
     ps = payload.get("pitch_speed", 0)
     if ps:
-        elements["pitch_speed"] = {"text": f"{ps} MPH", "fade": True}
+        elements["pitch_speed"] = {"text": f"{ps} MPH"}
 
     elements = {**elements, **build_lineup_state(payload)}
 
@@ -355,6 +355,7 @@ def main() -> None:
     scene: str = "starting"
 
     wbsc_data: dict[str, Any] = {}
+    wbsc_timeout: float = 0.0
     pitch_speed: int = 0
     status = {}
 
@@ -386,10 +387,20 @@ def main() -> None:
                         render_debug,
                     ) = extract_config_data(game)
 
+            if radar.get("active", False):
+                try:
+                    pitch_speed = radar_updates.get_nowait()
+                except queue.Empty:
+                    pass
+                # random.choice(
+                #    [45, 77, 90, 100, 32, 61]
+                # )  # get_pitch_speed()
+
             if mode == "game":
 
-                if new_game is not None:
-                    wbsc_data = get_box_score(game_id, competition)
+                if new_game is not None or (wbsc_timeout > 0 and now >= wbsc_timeout):
+                    wbsc_timeout = 0.0
+                    wbsc_data = {**wbsc_data, **get_box_score(game_id, competition)}
 
                 if now >= next_wbsc_poll or new_game is not None:
                     next_wbsc_poll = now + WBSC_POLL_INTERVAL
@@ -430,14 +441,6 @@ def main() -> None:
                         statuses = [status_text]
                     else:
                         latest_scene = "scorebug"
-                        if radar.get("active", False):
-                            try:
-                                pitch_speed = radar_updates.get_nowait()
-                            except queue.Empty:
-                                pass
-                            # random.choice(
-                            #    [45, 77, 90, 100, 32, 61]
-                            # )  # get_pitch_speed()
 
                         batter, pitcher = get_batter_and_pitcher(wbsc_data)
                         b_line = batter_line(batter).strip()
@@ -448,6 +451,12 @@ def main() -> None:
                         "text": status_text,
                         "fixed_text": random.choice(statuses),
                     }
+
+                if not wbsc_data.get("found", False) and not wbsc_timeout:
+                    wbsc_timeout = now + 30
+
+            elif mode == "practice":
+                latest_scene = "pitching"
 
             if scene != latest_scene:
                 message["command"] = "reload"

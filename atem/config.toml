@@ -1,0 +1,22 @@
+[[hardware]]
+id = "mini"
+label = "Atem Mini Pro"
+address = "192.168.2.84"
+
+# [[hardware]]
+# id = "mini2"
+# label = "Local switcher"
+# address = "usb"
+
+[[frontend]]
+type = "http-api"
+bind = ":8080"
+auth = true
+username = "bob"
+password = "hunter2"
+hardware = "mini,mini2"
+ 
+[[frontend]]
+type = "status"
+bind = "127.0.0.1:8082"
+auth = false

@@ -3,78 +3,213 @@
 <head>
     <title>Richmond Baseball Scorebug & Video Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- <link rel="stylesheet" href="/style.css"> -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+    :root {
+        --pico-form-element-spacing-vertical: 0.35rem;
+        --pico-form-element-spacing-horizontal: 0.65rem;
+        --pico-spacing: 0.75rem;
+    }
+    input,
+    select,
+    button,
+    [role="button"] {
+        font-size: 0.9rem;
+        text-shadow: 1px 1px 2px black;
+    }
+    </style>
 </head>
 <body>
     <h1>Richmond Baseball Scorebug & Video Control</h1>
-    <form id="general-form">
-        <label>Competition</label>
+    <main class="container-fluid">
+    <div class="grid">
         
-        <input
-            id="competition"
-            name="competition"
-            value="{{ game.get('competition', '') }}"
-        >
-        
-        <div class="swatches">
-            {{ competition_buttons|safe }}
-        </div>
+        <section>
+            <form id="general-form">
+                <label>Competition</label>
 
-        <label>Upcoming games</label>
-        <select
-            id="upcoming_games"
-            onchange="selectUpcomingGame()"
-        >
-            <option value="">Select a Competition First</option>
-        </select>
-
-        <div id="game-id-section">
-            <label>Game ID</label>
-            <input id="game_id" name="id" value="{{ game.get('id', '') }}">
-        </div>
-        
-        
-        <div id="game-info-mobile-anchor"></div>
-
-        <div class="control-layout">
-        
-            <div class="control-main">
-            
-                <label>Lock to play #</label>
                 <input
-                    id="play-lock"
-                    name="play_lock"
-                    type="number"
-                    min="-1"
-                    value="{{ game.get('play_lock') or '' }}"
-                    placeholder="Leave at 0 or blank for live playback, -1 for replay"
+                    id="competition"
+                    name="competition"
+                    value="{{ game.get('competition', '') }}"
                 >
-            
-                <label>Away colour</label>
-                <input id="away_colour" name="away_colour" value="{{ away_colour|safe }}">
-            
+
                 <div class="swatches">
-                    {{ away_buttons|safe }}
+                    {{ competition_buttons|safe }}
                 </div>
             
-                <label>Home colour</label>
-                <input id="home_colour" name="home_colour" value="{{ home_colour|safe }}">
+                <label>Upcoming games</label>
+                <select
+                    id="upcoming_games"
+                    onchange="selectUpcomingGame()"
+                >
+                    <option value="">Select a Competition First</option>
+                </select>
             
-                <div class="swatches">
-                    {{ home_buttons|safe }}
+                <div id="game-id-section">
+                    <label>Game ID</label>
+                    <input id="game_id" name="id" value="{{ game.get('id', '') }}">
+                </div>
+
+                <div class="control-layout">
+                
+                    <div class="control-main">
+                    
+                        <label>Lock to play #</label>
+                        <input
+                            id="play-lock"
+                            name="play_lock"
+                            type="number"
+                            min="-1"
+                            value="{{ game.get('play_lock') or '' }}"
+                            placeholder="Leave at 0 or blank for live playback, -1 for replay"
+                        >
+                    
+                        <label>Away colour</label>
+                        <input id="away_colour" name="away_colour" value="{{ away_colour|safe }}">
+                    
+                        <div class="swatches">
+                            {{ away_buttons|safe }}
+                        </div>
+                    
+                        <label>Home colour</label>
+                        <input id="home_colour" name="home_colour" value="{{ home_colour|safe }}">
+                    
+                        <div class="swatches">
+                            {{ home_buttons|safe }}
+                        </div>
+                    
+                        <div id="save-status" class="save-status saved">
+                            <span class="status-pip status-good"></span>
+                            <span id="save-status-text">Settings saved</span>
+                        </div>
+                    
+                        <button id="general-save" class="save" type="submit">
+                            Save Settings
+                        </button>
+                    
+                    </div>
+                
+                    
+                
                 </div>
             
-                <div id="save-status" class="save-status saved">
-                    <span class="status-pip status-good"></span>
-                    <span id="save-status-text">Settings saved</span>
-                </div>
+                <fieldset id="youtube-panel">
+                    <legend>YouTube</legend>
+                
+                    <div class="youtube-row">
+                        <div>
+                            <span id="youtube-login-pip" class="status-pip status-off"></span>
+                            <strong id="youtube-account">Not connected</strong>
+                        </div>
+                    
+                        <a role="button" id="youtube-auth-button" class="button-link" href="/youtube/login">
+                            Connect YouTube
+                        </a>
+                    </div>
+                    <br/>
+                    <div id="youtube-controls" hidden>
+                        <div class="youtube-actions">
+                            <button type="button" id="youtube-create-broadcast">
+                                Create Broadcast
+                            </button>
+                            <button type="button" id="youtube-bind-broadcast">
+                                Bind Stream to Broadcast
+                            </button>
+                        </div>
+                    
+                        <label>
+                            Broadcast
+                            <select id="youtube-broadcast-select">
+                                <option value="">Select broadcast...</option>
+                            </select>
+                        </label>
+                    
+                        <div class="youtube-status-grid">
+                            <div>
+                                <span id="youtube-broadcast-pip" class="status-pip status-off"></span>
+                                Broadcast:
+                                <strong id="youtube-broadcast-status">None selected</strong>
+                            </div>
+                        
+                            <div>
+                                <span id="youtube-ingest-pip" class="status-pip status-off"></span>
+                                RTMP:
+                                <strong id="youtube-ingest-status">Inactive</strong>
+                            </div>
+                        
+                            <div>
+                                <span id="youtube-health-pip" class="status-pip status-off"></span>
+                                Health:
+                                <strong id="youtube-health-status">No data</strong>
+                            </div>
+                        </div>
+                    
+                        <button type="button" id="youtube-live" disabled>
+                            GO LIVE
+                        </button>
+                    
+                        <pre id="youtube-errors">No errors</pre>
+                    </div>
+                </fieldset>
             
-                <button id="general-save" class="save" type="submit">
-                    Save Settings
-                </button>
             
-            </div>
-        
+            
+                <details style="margin-top: 30px;">
+                    <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
+                        Advanced
+                    </summary>
+                
+                    <fieldset>
+                        <legend>SRT Stream</legend>
+                        <label>
+                          SRT URL
+                          <input id="srt-url" type="text" placeholder="srt://localhost:8890?mode=caller&streamid=publish:scorebug">
+                        </label>
+                        <label>
+                          Width
+                          <input id="srt-width" type="number" value="1920">
+                        </label>
+                        <label>
+                          Height
+                          <input id="srt-height" type="number" value="1080">
+                        </label>
+                        <label>
+                          FPS
+                          <input id="srt-fps" type="number" value="25">
+                        </label>
+                        <label>
+                          Video Bitrate
+                          <input id="srt-bitrate" type="text" value="4M">
+                        </label>
+                        <div class="srt-actions">
+                          <button type="button" id="srt-load">Load SRT Settings</button>
+                          <button type="button" id="srt-save">Save SRT Settings</button>
+                          <button type="button" id="srt-live">START SRT</button>
+                        </div>
+                        <h2 id="srt-status">SRT: unknown</h2>
+                        <h4>Errors:</h4>
+                        <pre
+                        id="srt_status"
+                        style="
+                            background: #000;
+                            color: #0f0;
+                            padding: 16px;
+                            border-radius: 8px;
+                            white-space: pre-wrap;
+                            font-size: 16px;
+                        "
+                        >...</pre>
+                      </fieldset>
+
+                    </div>
+                </details>
+            </form>
+        </section>
+        <section>
             <div id="game-panel-desktop">
                 <aside id="game-side-panel">
                     <br/>
@@ -111,135 +246,9 @@
                 
                 </aside>
             </div>
-        
-        </div>
-
-        <fieldset id="youtube-panel">
-            <legend>YouTube</legend>
-
-            <div class="youtube-row">
-                <div>
-                    <span id="youtube-login-pip" class="status-pip status-off"></span>
-                    <strong id="youtube-account">Not connected</strong>
-                </div>
-
-                <a id="youtube-auth-button" class="button-link" href="/youtube/login">
-                    Connect YouTube
-                </a>
-            </div>
-        
-            <div id="youtube-controls" hidden>
-                <div class="youtube-actions">
-                    <button type="button" id="youtube-create-broadcast">
-                        Create Broadcast
-                    </button>
-                    <button type="button" id="youtube-bind-broadcast">
-                        Bind Stream to Broadcast
-                    </button>
-                </div>
-
-                <label>
-                    Broadcast
-                    <select id="youtube-broadcast-select">
-                        <option value="">Select broadcast...</option>
-                    </select>
-                </label>
-
-                <div class="youtube-status-grid">
-                    <div>
-                        <span id="youtube-broadcast-pip" class="status-pip status-off"></span>
-                        Broadcast:
-                        <strong id="youtube-broadcast-status">None selected</strong>
-                    </div>
-                
-                    <div>
-                        <span id="youtube-ingest-pip" class="status-pip status-off"></span>
-                        RTMP:
-                        <strong id="youtube-ingest-status">Inactive</strong>
-                    </div>
-                
-                    <div>
-                        <span id="youtube-health-pip" class="status-pip status-off"></span>
-                        Health:
-                        <strong id="youtube-health-status">No data</strong>
-                    </div>
-                </div>
-
-                <button type="button" id="youtube-live" disabled>
-                    GO LIVE
-                </button>
-
-                <pre id="youtube-errors">No errors</pre>
-            </div>
-        </fieldset>
-
-
-
-        <details style="margin-top: 30px;">
-            <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
-                Advanced / Network
-            </summary>
-        
-            <button type="button" onclick="loadNetworkStatus()">
-                Refresh network status
-            </button>
-        
-            <pre
-                id="network_status"
-                style="
-                    background: #000;
-                    color: #0f0;
-                    padding: 16px;
-                    border-radius: 8px;
-                    white-space: pre-wrap;
-                    font-size: 16px;
-                "
-            >Press refresh...</pre>
-            <fieldset>
-                <legend>SRT Stream</legend>
-                <label>
-                  SRT URL
-                  <input id="srt-url" type="text" placeholder="srt://localhost:8890?mode=caller&streamid=publish:scorebug">
-                </label>
-                <label>
-                  Width
-                  <input id="srt-width" type="number" value="1920">
-                </label>
-                <label>
-                  Height
-                  <input id="srt-height" type="number" value="1080">
-                </label>
-                <label>
-                  FPS
-                  <input id="srt-fps" type="number" value="25">
-                </label>
-                <label>
-                  Video Bitrate
-                  <input id="srt-bitrate" type="text" value="4M">
-                </label>
-                <div class="srt-actions">
-                  <button type="button" id="srt-load">Load SRT Settings</button>
-                  <button type="button" id="srt-save">Save SRT Settings</button>
-                  <button type="button" id="srt-live">START SRT</button>
-                </div>
-                <h2 id="srt-status">SRT: unknown</h2>
-                <h4>Errors:</h4>
-                <pre
-                id="srt_status"
-                style="
-                    background: #000;
-                    color: #0f0;
-                    padding: 16px;
-                    border-radius: 8px;
-                    white-space: pre-wrap;
-                    font-size: 16px;
-                "
-                >...</pre>
-              </fieldset>
-              
-            </div>
-        </details>
-    </form>
+        </section>
+                    
+    </div>
     <script>
 
         var CURRENT_SCHEDULE = [];
@@ -265,7 +274,8 @@
                 name.style.backgroundColor = colour;
                 name.style.padding = "2px 5px";
                 name.style.borderRadius = "3px";
-                name.style.webkitTextStroke = "0.5px black";
+                //name.style.webkitTextStroke = "0.5px black";
+                name.style.textShadow = "1px 1px 2px black";
             }
         }
 
@@ -1071,8 +1081,14 @@
         <script>
             function signalBars(level) {
                 if (level == null) return "—";
-
-                return "▂▄▆▇█".slice(0, level);
+                        
+                return `
+                    <span class="signal-bars">
+                        ${[1,2,3,4,5].map(i =>
+                            `<i class="${i <= level ? 'on' : ''}"></i>`
+                        ).join("")}
+                    </span>
+                `;
             }
             async function loadNetworks() {
                 const box = document.getElementById("network-summary");
@@ -1097,7 +1113,7 @@
                         return `
                             <div class="network-device">
                                 <strong>
-                                    ${info.manufacturer || "Unknown"}
+                                    ${info.manufacturer || ""}
                                     ${info.network_provider ? ` · ${info.network_provider}` : ""}
                                 </strong>
                             
@@ -1106,7 +1122,7 @@
                                 </div>
                             
                                 <div>
-                                    ${info.network_type || "Unknown network"}
+                                    ${info.network_type || ""}
                                     ${signalBars(info.signal_bars)}
                                 </div>
                             

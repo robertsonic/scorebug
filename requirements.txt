@@ -5,6 +5,6 @@ google_auth_oauthlib==1.4.0
 Pillow==12.3.0
 protobuf==7.35.1
 psutil==7.2.2
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 Requests==2.34.2
-tplinkrouterc6u==5.30.0
+tplinkrouterc6u==5.31.0
