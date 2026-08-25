@@ -1,6 +1,11 @@
 import platform
+import os
 from typing import Any
+from dotenv import load_dotenv
 
+load_dotenv()
+
+FFMPEG_PATH = os.getenv("FFMPEG_PATH", "")
 
 def build_stream_state(srt: dict[str, Any]) -> dict[str, Any]:
 
@@ -37,7 +42,7 @@ def build_srt_command(srt: dict[str, Any]) -> list[str]:
 
     return (
         [
-            "ffmpeg",
+            f"{FFMPEG_PATH}ffmpeg",
             "-f",
             "rawvideo",
             "-pix_fmt",
