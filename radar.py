@@ -7,29 +7,33 @@ from network_scan import get_interface_ipv4
 
 GROUP = "239.255.19.92"
 PORT = 1992
+READ_PARAMETERS = bytes.fromhex("77 AA 01 0A D4 7A")
 
 
 def parse_radar(data):
-    try:
-        value = data.decode().strip()
+    # try:
+    value = data.decode().strip()
 
-        # V = velocity, - = incoming, M = MPH
-        if not (value.startswith("V-") and value.endswith("M")):
-            return None
+    # V = velocity, - = incoming, M = MPH
+    if not (value.startswith("V-") and value.endswith("M")):
+        raise ValueError(f"Invalid radar data: {data.hex(' ')}")
 
-        value = math.floor(float(value[2:-1]))
-        
-        if value > 999 or value < 20:
-            return None
-        
-        return value
+    value = math.floor(float(value[2:-1]))
 
-    except (UnicodeDecodeError, ValueError):
+    if value > 999 or value < 20:
         return None
-    
-def run_radar(updates = None, stop_event = None, config = { "port" : PORT, "group": GROUP}):
 
-    interfaces = get_interface_ipv4()
+    return value
+
+    # except (UnicodeDecodeError, ValueError):
+    #     return None
+
+
+def run_radar(updates=None, stop_event=None, config={"port": PORT, "group": GROUP}):
+    last_keepalive = 0.0
+    radar_address: socket._RetAddress | None = None
+
+    interfaces = get_interface_ipv4(safe=True)
 
     sock = socket.socket(
         socket.AF_INET,
@@ -47,9 +51,6 @@ def run_radar(updates = None, stop_event = None, config = { "port" : PORT, "grou
 
     for interface, ip in interfaces.items():
 
-        if not str(interface).lower().startswith("eth"):
-            continue
-
         mreq = struct.pack(
             "4s4s",
             socket.inet_aton(config["group"]),
@@ -62,38 +63,49 @@ def run_radar(updates = None, stop_event = None, config = { "port" : PORT, "grou
             mreq,
         )
 
-        print(
-            f"Joined {config['group']} on "
-            f"{interface} ({ip})"
-        )
-
-    #sock.settimeout(1.0)
+        print(f"Joined {config['group']} on " f"{interface} ({ip})")
 
     try:
         while stop_event is None or not stop_event.is_set():
             try:
+
+                sock.settimeout(1.0)
+
                 data, addr = sock.recvfrom(1024)
 
                 speed = parse_radar(data)
 
-                
+                radar_address = addr
+
                 if updates is not None and speed is not None:
-                    updates.put(
-                        speed
-                    )
+                    updates.put(speed)
                 elif speed is not None:
                     print(addr, speed)
 
-            except:
-                continue
+            except ValueError as e:
+                print(e)
+                pass
+
+            except socket.timeout:
+                pass
+
+            # Send read-parameter command every 60 seconds
+            if radar_address is not None and time.monotonic() - last_keepalive >= 60.0:
+                sock.sendto(
+                    READ_PARAMETERS,
+                    radar_address,
+                )
+
+                print("Sent radar keepalive")
+
+                last_keepalive = time.monotonic()
 
     except KeyboardInterrupt:
         print("Stopping listener")
 
     finally:
         sock.close()
-        
-if __name__ == "__main__":
 
-    print("hi")
+
+if __name__ == "__main__":
     run_radar()

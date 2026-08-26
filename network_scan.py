@@ -45,7 +45,7 @@ def run_command(command):
         return None
 
 
-def get_interface_ipv4():
+def get_interface_ipv4(safe=False):
     result = {}
 
     for name, addresses in psutil.net_if_addrs().items():
@@ -53,7 +53,16 @@ def get_interface_ipv4():
         for address in addresses:
 
             if address.family == socket.AF_INET:
-                result[name] = address.address
+
+                if not safe:
+                    result[name] = address.address
+                else:
+                    if not name.lower().startswith(
+                        ("eth", "wifi")
+                    ) or address.address.startswith("169.254."):
+                        continue
+
+                    result[name] = address.address
                 break
 
     return result

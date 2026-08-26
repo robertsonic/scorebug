@@ -7,14 +7,11 @@ GROUP = "239.255.19.92"
 PORT = 1992
 TARGET = (GROUP, PORT)
 
-interfaces = get_interface_ipv4()
+interfaces = get_interface_ipv4(safe=True)
 
 sockets = []
 print(interfaces)
 for interface, ip in interfaces.items():
-
-    if not str(interface).lower().startswith("eth"):
-        continue
 
     sock = socket.socket(
         socket.AF_INET,
