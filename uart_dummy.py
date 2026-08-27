@@ -36,8 +36,14 @@ for interface, ip in interfaces.items():
     print(f"Multicast output on {interface} ({ip})")
 
 
+def send(value):
+    for sock in sockets:
+        sock.sendto(value, TARGET)
+
+
+send(bytes.fromhex("77 AA 01 0A D4 7A"))
+
 while True:
     value = input("Speed: ").encode()
 
-    for sock in sockets:
-        sock.sendto(value, TARGET)
+    send(value)
