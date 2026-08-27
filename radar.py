@@ -11,12 +11,15 @@ READ_PARAMETERS = bytes.fromhex("77 AA 01 0A D4 7A")
 
 
 def parse_radar(data):
-    # try:
-    value = data.decode().strip()
+    value = ''
+    try:
+      value = data.decode().strip()
+    except:
+        pass
 
     # V = velocity, - = incoming, M = MPH
     if not (value.startswith("V-") and value.endswith("M")):
-        raise ValueError(f"Invalid radar data: {data.hex(' ')}")
+        raise ValueError(f"Invalid radar data or configuration string is: {data.hex(' ')}")
 
     value = math.floor(float(value[2:-1]))
 
@@ -96,7 +99,7 @@ def run_radar(updates=None, stop_event=None, config={"port": PORT, "group": GROU
                     radar_address,
                 )
 
-                print("Sent radar keepalive")
+                print(f"Sent radar keepalive to {radar_address}")
 
                 last_keepalive = time.monotonic()
 
