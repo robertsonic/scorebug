@@ -44,6 +44,6 @@ def send(value):
 send(bytes.fromhex("77 AA 01 0A D4 7A"))
 
 while True:
-    value = input("Speed: ").encode()
+    value = input("Message: ").encode()
 
     send(value)

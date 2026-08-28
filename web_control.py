@@ -12,8 +12,6 @@ import threading
 from network_scan import scan_networks
 from wbsc import get_box_score, get_schedule
 
-#os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
 app = Flask(__name__)
 
 from youtube import youtube_bp
@@ -84,6 +82,7 @@ def competition_buttons():
         ("BBF Div 3", "bbf_div_3"),
         ("BBF Div 4", "bbf_div_4"),
         ("BBF Div 5", "bbf_div_5"),
+        ("BBF Friendly", "bbf_friendly"),
         ("Unknown", None),
     ]
 

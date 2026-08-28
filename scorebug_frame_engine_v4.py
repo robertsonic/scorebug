@@ -74,6 +74,9 @@ class TextElement:
     font: ImageFont.ImageFont
     bbox: BBox
 
+    opacity_fade_ns: int | None = None
+    opacity_hold_ns: int | None = None
+
     started_ns: int | None = None
 
     text: str = ""
@@ -459,7 +462,8 @@ class FrameEngine:
                         self.canvas_dimensions[0] - 50,
                         self.canvas_dimensions[1] - 50,
                     ),
-                    fade=False,
+                    fade=True,
+                    opacity_hold_ns=8_000_000_000,
                 )
             },
             "common": {
@@ -816,26 +820,30 @@ class FrameEngine:
                 )
                 age_ns = max(0, now_ns - fade_started_ns)
 
-                if age_ns <= self.opacity_hold_ns:
+                opacity_hold_ns = (
+                    v["opacity_hold_ns"]
+                    if v.get("opacity_hold_ns") is not None
+                    else self.opacity_hold_ns
+                )
+                opacity_fade_ns = (
+                    v["opacity_fade_ns"]
+                    if v.get("opacity_fade_ns") is not None
+                    else self.opacity_fade_ns
+                )
+
+                if age_ns <= opacity_hold_ns:
                     opacity = 100
                 else:
                     opacity = max(
                         0,
                         math.floor(
-                            100
-                            * (
-                                1
-                                - (
-                                    (age_ns - self.opacity_hold_ns)
-                                    / self.opacity_fade_ns
-                                )
-                            )
+                            100 * (1 - ((age_ns - opacity_hold_ns) / opacity_fade_ns))
                         ),
                     )
                 v["started_ns"] = fade_started_ns
 
                 if opacity <= 0 and age_ns >= (
-                    self.opacity_fade_ns + self.opacity_hold_ns + self.opacity_fade_ns
+                    opacity_fade_ns + opacity_hold_ns + opacity_fade_ns
                 ):
                     v["fade"] = False
                     v["started_ns"] = None
@@ -873,7 +881,12 @@ class FrameEngine:
                     continue
 
                 if v.get("fade", getattr(elem, "fade", False)):
-                    self.faders[k] = {**copy.deepcopy(v), "fade": True}
+                    self.faders[k] = {
+                        **copy.deepcopy(v),
+                        "fade": True,
+                        "opacity_hold_ns": getattr(elem, "opacity_hold_ns", None),
+                        "opacity_fade_ns": getattr(elem, "opacity_fade_ns", None),
+                    }
 
                 fill = getattr(elem, "fill", "white")
                 stroke_fill = getattr(elem, "stroke_fill", "black")

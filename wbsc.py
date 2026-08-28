@@ -12,6 +12,7 @@ comp_map = {
     "bbf_div_3": "2026-d3",
     "bbf_div_4": "2026-d4",
     "bbf_div_5": "2026-d5",
+    "bbf_friendly": "2026-friendlies",
 }
 
 

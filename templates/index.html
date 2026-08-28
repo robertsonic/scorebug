@@ -1,5 +1,5 @@
 
-<html>
+<html data-theme="dark">
 <head>
     <title>Richmond Baseball Scorebug & Video Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,6 +7,7 @@
 
     <!-- <link rel="stylesheet" href="/style.css"> -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/scorebug.css">
     <style>
     :root {
         --pico-form-element-spacing-vertical: 0.35rem;
@@ -818,9 +819,9 @@
                 } catch (err) {
                     console.error(err);
                     alert(err.message);
-                    button.textContent = "Create new broadcast";
                 } finally {
                     button.disabled = false;
+                    button.textContent = "Create new broadcast";
                 }
             }
 
@@ -828,6 +829,9 @@
                 const select = document.getElementById("youtube-broadcast-select");
             
                 try {
+                    select.disabled = true
+                    select.innerHTML = '<option value="">Updating...</option>';
+
                     const response = await fetch("/youtube/broadcasts");
                     const data = await response.json();
                 
@@ -835,13 +839,14 @@
                         throw new Error(data.error || "Unable to load broadcasts");
                     }
                 
+                    select.disabled = false
                     select.innerHTML = '<option value="">Select broadcast...</option>';
                 
                     for (const broadcast of data.broadcasts || []) {
                         const option = document.createElement("option");
                     
                         option.value = broadcast.id;
-                        option.textContent = broadcast.title;
+                        option.textContent = `${broadcast.title} - ${broadcast.id}`;
                     
                         select.appendChild(option);
                     }

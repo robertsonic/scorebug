@@ -13,16 +13,20 @@ READ_PARAMETERS = bytes.fromhex("77 AA 01 0A D4 7A")
 def parse_radar(data):
     value = ''
     try:
-      value = data.decode().strip()
+        value = data.decode().strip()
     except:
         pass
 
     # V = velocity, - = incoming, M = MPH
-    if not (value.startswith("V-") and value.endswith("M")):
-        raise ValueError(f"Invalid radar data or configuration string is: {data.hex(' ')}")
 
-    value = math.floor(float(value[2:-1]))
-
+    if not value.isnumeric():
+        if not (value.startswith("Vm") and value.endswith("M")):
+            raise ValueError(
+                f"Invalid radar data or configuration string is: {data.hex(' ')}"
+            )
+        value = math.floor(float(value[2:-1]))
+    else:
+        value = int(value)
     if value > 999 or value < 20:
         return None
 

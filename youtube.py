@@ -11,6 +11,10 @@ from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 youtube_bp = Blueprint(
     "youtube",
     __name__,
@@ -306,6 +310,8 @@ def broadcasts():
     broadcasts = []
 
     for item in response.get("items", []):
+        if item.get("status", {}).get("lifeCycleStatus") in {"complete", "revoked"}:
+            continue
         broadcasts.append(
             {
                 "id": item["id"],
