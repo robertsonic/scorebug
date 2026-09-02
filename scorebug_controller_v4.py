@@ -12,9 +12,12 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from display import run_display
 from ffmpeg_utils import build_stream_state
 from radar import run_radar
 from scorebug_frame_engine_v4 import run_frame_engine
+from wbsc import get_box_score, get_play, get_wbsc_data
+from network_scan import scan_networks
 
 from utils import (
     get_batter_and_pitcher,
@@ -24,10 +27,10 @@ from utils import (
     occupied,
     get_team_colour,
 )
-from wbsc import get_box_score, get_play, get_wbsc_data
 
 CONFIG_POLL_INTERVAL = 2
 WBSC_POLL_INTERVAL = 3
+DISPLAY_POLL_INTERVAL = 10
 
 STATUS_TIMEOUT = 120
 FPS = 25
@@ -304,6 +307,10 @@ def main() -> None:
     frame_updates: mp.Queue = mp.Queue()
     frame_stop_event = mp.Event()
 
+    # Frame engine
+    display_updates: mp.Queue = mp.Queue()
+    display_stop_event = mp.Event()
+
     frame_process = mp.Process(
         target=run_frame_engine,
         args=(
@@ -336,8 +343,20 @@ def main() -> None:
 
     radar_process.start()
 
+    display_process = mp.Process(
+        target=run_display,
+        args=(
+            display_updates,
+            display_stop_event,
+        ),
+        name="display",
+    )
+
+    display_process.start()
+
     next_config_poll: float = 0.0
     next_wbsc_poll: float = 0.0
+    next_display_poll: float = 0.0
 
     mode: str = "game"
     play_lock: int = 0
@@ -475,7 +494,7 @@ def main() -> None:
                 }
 
             scene = latest_scene
-            print(latest_scene)
+
             message = {
                 **message,
                 "scene": latest_scene,
@@ -493,10 +512,30 @@ def main() -> None:
                 print("Changes with play", latest_play, ":", changed_elements)
                 send_latest(frame_updates, message)
                 prev_frame_process_message = copy.deepcopy(message)
-            else:
-                ...
 
             time.sleep(0.75)
+
+            if "status" in changed_elements or "pitch_speed" in changed_elements:
+                message = {
+                    "status": (
+                        elements["status"] if "status" in changed_elements else None
+                    ),
+                    "pitch_speed": (
+                        elements["pitch_speed"]
+                        if "pitch_speed" in changed_elements
+                        else None
+                    ),
+                }
+
+                send_latest(display_updates, message)
+
+            if now >= next_display_poll:
+                next_display_poll = now + DISPLAY_POLL_INTERVAL
+
+                message = {
+                    "interfaces": scan_networks(True),
+                }
+                send_latest(display_updates, message)
 
         except KeyboardInterrupt:
             break

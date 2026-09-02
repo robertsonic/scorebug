@@ -321,9 +321,9 @@ def probe_gateway(gateway):
     return None
 
 
-def scan_networks():
+def scan_networks(safe=False):
 
-    interface_ips = get_interface_ipv4()
+    interface_ips = get_interface_ipv4(safe)
 
     results = []
     seen = set()
@@ -342,13 +342,20 @@ def scan_networks():
         # if not info:
         #    continue
 
-        results.append({
-            "interface": route["interface"],
-            "interface_ip": interface_ips.get(route["interface"]),
-            "gateway": gateway,
-            "default": route["default"],
-            "info": info
-        })
+        ip = interface_ips.get(route["interface"])
+
+        if ip is None:
+            continue
+
+        results.append(
+            {
+                "interface": route["interface"],
+                "interface_ip": ip,
+                "gateway": gateway,
+                "default": route["default"],
+                "info": info,
+            }
+        )
 
     return results
 

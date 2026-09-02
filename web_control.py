@@ -172,7 +172,7 @@ def preview():
 
 @app.route("/api/networks")
 def get_networks():
-    return jsonify(scan_networks())
+    return jsonify(scan_networks(True))
 
 @app.route("/api/network-status")
 def api_network_status():
