@@ -56,7 +56,7 @@ SLOT_SECONDS = 1.0 / BITBANG_RATE
 #
 #  D7 D6 D5 D4 D3 D2 D1 D0
 #  |  |  |  |  |  |  |  |
-#  LCD DATA    E  RS DI CLK
+#  LCD DATA    E  RS CLK DI
 #
 # D7-D4 : HD44780 data
 # D3    : HD44780 E
@@ -72,8 +72,8 @@ LCD_DATA_MASK = 0xF0
 LCD_E = 0x08
 LCD_RS = 0x04
 
-LED_DATA = 0x02
-LED_CLOCK = 0x01
+LED_CLOCK = 0x02
+LED_DATA = 0x01
 
 LCD_MASK = 0xFC
 LED_MASK = 0x03
