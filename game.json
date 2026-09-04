@@ -1,7 +1,7 @@
 {
 	"id": 207785,
 	"competition": "bbf_friendly",
-	"mode": "game",
+	"mode": "practice",
 	"home": {
 		"colour": "FF0000"
 	},
@@ -10,7 +10,7 @@
 	},
 	"play_lock": 0,
 	"srt": {
-		"live_requested": false,
+		"live_requested": true,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
 		"width": 1920,
 		"height": 1080,
