@@ -373,8 +373,6 @@ def scan_networks(safe=False):
         # if not info:
         #    continue
 
-        info = { "signal_bars" : random.random() * 5}
-
         ip = interface_ips.get(route["interface"])
 
         if ip is None:

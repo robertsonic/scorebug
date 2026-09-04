@@ -686,9 +686,6 @@ def update_displays(page_num: int, now: float, force: bool = False) -> None:
 
     next_page_flip = now + PAGE_FLIP_INTERVAL
 
-    if page_num == displayed_page_num and not force:
-        return
-
     page = lcd_pages[page_num]
 
     line1 = page[0] if len(page) > 0 else None
@@ -763,10 +760,6 @@ def run_display(
 
             except queue.Empty:
                 pass
-            # import random
-            # latest= {"interfaces" : 
-            #     [{"interface":"TEST", "interface_ip":"123.123.123.123", "info":{"signal_bars": 3}},
-            #      {"interface":"TEST2", "interface_ip":"200.123.443.123", "info":{"signal_bars": random.random() * 5}}]}
 
             if latest is not None:
 
