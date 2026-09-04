@@ -1,15 +1,17 @@
 import json
 import os
 import platform
+import random
 import re
 import socket
 import subprocess
 import threading
+import time
 
 import psutil
 import requests
 
-from tplinkrouterc6u import TplinkRouterProvider
+from tplinkrouterc6u import TPLinkMRClient, TplinkRouterProvider
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +21,7 @@ TP_LINK_PASSWORD = os.getenv("TPLINK_PASSWORD")
 
 SYSTEM = platform.system().lower()
 
-HTTP_TIMEOUT = 1
+HTTP_TIMEOUT = 0.05
 
 # TP-Link clients are cached for the lifetime of this module/process so that
 # repeated calls to scan_networks() do not log in to the router every time.
@@ -180,6 +182,7 @@ def probe_zte(gateway):
     )
 
     try:
+
         response = requests.get(
             url,
             headers={
@@ -219,6 +222,22 @@ def probe_zte(gateway):
         "raw": data
     }
 
+def looks_like_tplink(gateway):
+    try:
+        response = requests.get(
+            f"http://{gateway}/",
+            timeout=HTTP_TIMEOUT,
+        )
+
+        text = response.text.lower()
+
+        return (
+            "tp-link" in text
+            or "tplink" in text
+        )
+
+    except requests.RequestException:
+        return False
 
 def get_tplink_router(gateway):
     """
@@ -234,7 +253,14 @@ def get_tplink_router(gateway):
         if router is not None:
             return router
 
-        router = TplinkRouterProvider.get_client(
+        # router = TplinkRouterProvider.get_client(
+        #     f"http://{gateway}",
+        #     TP_LINK_PASSWORD,
+        #     TP_LINK_USERNAME,
+        #     timeout=HTTP_TIMEOUT * 60
+        # )
+
+        router = TPLinkMRClient(
             f"http://{gateway}",
             TP_LINK_PASSWORD,
             TP_LINK_USERNAME,
@@ -269,6 +295,10 @@ def probe_tplink(gateway):
 
     if not TP_LINK_PASSWORD:
         return None
+
+    if gateway not in _TPLINK_ROUTERS:
+        if not looks_like_tplink(gateway):
+            return None
 
     # First attempt reuses the cached session. If that session has expired,
     # discard it and retry once with a fresh login.
@@ -312,9 +342,10 @@ def probe_gateway(gateway):
         probe_zte,
         probe_tplink,
     ):
-
+        start = time.monotonic()
         result = probe(gateway)
 
+       # print(f"{gateway} {probe} took {(time.monotonic() - start) * 1000:.1f} ms")
         if result:
             return result
 
@@ -341,6 +372,8 @@ def scan_networks(safe=False):
 
         # if not info:
         #    continue
+
+        info = { "signal_bars" : random.random() * 5}
 
         ip = interface_ips.get(route["interface"])
 

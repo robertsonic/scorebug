@@ -1,5 +1,5 @@
 {
-	"id": 207785,
+	"id": 207185,
 	"competition": "bbf_friendly",
 	"mode": "practice",
 	"home": {
@@ -8,9 +8,9 @@
 	"away": {
 		"colour": "FFFFFF"
 	},
-	"play_lock": 0,
+	"play_lock": -1,
 	"srt": {
-		"live_requested": true,
+		"live_requested": false,
 		"url": "srt://localhost:8890?mode=caller&streamid=publish:scorebug",
 		"width": 1920,
 		"height": 1080,

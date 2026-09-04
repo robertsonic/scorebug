@@ -4,15 +4,19 @@ import time
 from multiprocessing.queues import Queue
 from typing import Any
 
+import os
 import usb.core
 import usb.util
+import usb.backend.libusb1
+
+
 
 # ---------------------------------------------------------------------------
 # Display configuration
 # ---------------------------------------------------------------------------
 
 PAGE_FLIP_INTERVAL = 3
-SCOREBUG_DISPLAY_TIME = 6
+SCOREBUG_DISPLAY_TIME = 15
 
 lcd_pages = [["Scorebug Display", "v1.0", None]]
 lcd_page_num = 0
@@ -48,6 +52,7 @@ BITBANG_BAUD = 9600
 BITBANG_RATE = BITBANG_BAUD * 16
 
 SLOT_SECONDS = 1.0 / BITBANG_RATE
+
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +374,7 @@ def build_led_waveform(level: int) -> list[int]:
     for channel in range(12):
 
         if channel < level and channel < 10:
-            brightness = 0xFFFF
+            brightness = 0x0099
         else:
             brightness = 0x0000
 
@@ -574,9 +579,17 @@ def enable_async_bitbang(device) -> None:
 def open_ft245r():
 
     try:
+        if os.name == "nt":
+            backend = usb.backend.libusb1.get_backend(
+                find_library=lambda _: r".\libusb-1.0.dll"
+            )
+        else:
+            backend = usb.backend.libusb1.get_backend()
+
         device = usb.core.find(
             idVendor=FTDI_VENDOR_ID,
             idProduct=FTDI_PRODUCT_ID,
+            backend=backend,
         )
 
     except usb.core.NoBackendError:
@@ -588,7 +601,7 @@ def open_ft245r():
         return None, None
 
     try:
-        if device.is_kernel_driver_active(0):
+        if os.name != "nt" and device.is_kernel_driver_active(0):
             device.detach_kernel_driver(0)
 
     except (NotImplementedError, usb.core.USBError):
@@ -695,9 +708,10 @@ def update_displays(page_num: int, now: float, force: bool = False) -> None:
         )
 
     # None explicitly means "leave the LED bar alone".
-    if signal_strength is not None:
+    if signal_strength is None:
+        signal_strength = 0
 
-        led_wave = build_led_waveform(signal_strength)
+    led_wave = build_led_waveform(signal_strength / 5 * 10)
 
     gpio = combine_waveforms(
         lcd_wave,
@@ -749,6 +763,10 @@ def run_display(
 
             except queue.Empty:
                 pass
+            # import random
+            # latest= {"interfaces" : 
+            #     [{"interface":"TEST", "interface_ip":"123.123.123.123", "info":{"signal_bars": 3}},
+            #      {"interface":"TEST2", "interface_ip":"200.123.443.123", "info":{"signal_bars": random.random() * 5}}]}
 
             if latest is not None:
 
@@ -831,6 +849,8 @@ def run_display(
 
     except Exception as error:
         print(f"Display error: {error}")
+        import traceback
+        traceback.print_exc()
 
     finally:
 
